@@ -93,12 +93,34 @@ Once you know the encoding scheme, you can work backwards from the PWM to get th
 
 I wrote Python scripts to parse the timing, but honestly for the first pass I just did it by hand.
 
-For example, the Sonte button 1 command turned out to be:
+**Example from my Gazco analysis:**
 ```
-Binary: 1111111110111011111100111
+UP Button:
+  Binary:  10000011101110010000100
+  Length:  23 bits
+  Repeats: 10 times per button press
+
+Converting to PWM (1='100', 0='110'):
+  PWM: 100110110110110110100100100110100100100110110100110110110110100110110
 ```
 
-That's 25 bits. Different buttons had slightly different bit patterns - usually just the last few bits changed.
+I tried to figure out the command structure - looked like there might be a preamble, address, and command sections:
+```
+  Possible structure:
+    Preamble:   1000001 (7 bits)
+    ID/Address: 1101110010 (10 bits)
+    Command:    000100 (6 bits)
+```
+
+But honestly, I never confirmed if that's actually how it works. I just recorded each button's full pattern and hardcoded them.
+
+**Sonte was simpler:**
+```
+Button 1: 1111111110111011111100111 (25 bits)
+Button 2: 111111110111011111111101 (24 bits)
+```
+
+Just two different codes, no need to decode the structure.
 
 ### Step 5: Validate Everything
 
