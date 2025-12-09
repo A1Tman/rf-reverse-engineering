@@ -29,14 +29,12 @@ The protocol uses a 24-25 bit command structure with PWM encoding (1='1000', 0='
 
 ### Discovered Commands
 
-The Sonte remote supports multiple commands for controlling smart film transparency:
+The Sonte remote has two buttons for controlling smart film state:
 
-| Command | Function | Description |
-|---------|----------|-------------|
-| **UP** | Raise | Increase film transparency (clear) |
-| **DOWN** | Lower | Decrease film transparency (opaque) |
-| **STOP** | Stop | Halt film movement |
-| **PROG** | Program | Channel programming mode |
+| Button | Function | Binary Key |
+|--------|----------|------------|
+| **Button 1** | Transparent | `1111111110111011111100111` |
+| **Button 2** | Opaque | `111111110111011111111101` |
 
 ### PWM Encoding Details
 
@@ -175,11 +173,14 @@ class SonteController:
 ### Usage Examples
 
 ```bash
-# Control smart film transparency
+# Control smart film state
 cd code
-python sonte_controller.py up      # Make film transparent
-python sonte_controller.py down    # Make film opaque
-python sonte_controller.py stop    # Stop at current opacity
+python sonte_controller.py button1    # Make film transparent
+python sonte_controller.py button2    # Make film opaque
+
+# Or use individual button scripts
+python sonte_button1_transparent.py
+python sonte_button2_opaque.py
 ```
 
 ## Hardware Requirements

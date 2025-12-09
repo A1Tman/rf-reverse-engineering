@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # Send a PWM String using RfCat
-# Sonte Smart Film - STOP command
+# Sonte Smart Film - Button 2 (make opaque)
 
 import bitstring
 import rflib
 
 prefix = ''
 # Fjernkontrollens key (The key from our static key remote)
-key = '1111111110111011111100111'
+key = '111111110111011111111101'
 
 pwm_key = ''.join(['1000' if b == '1' else '1110' for b in key])
 full_pwm = '{}{}'.format(prefix, pwm_key)
@@ -25,5 +25,5 @@ d.setMdmSyncMode(0)
 d.setFreq(433916000)
 d.setMaxPower()
 
-d.RFxmit(b'\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\xee\x88\x80\x00\x00\x00'*4)
+d.RFxmit(b'\x88\x88\x88\x88\xe8\x88\xe8\x88\x88\x88\x88\xe8\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00')
 d.setModeIDLE()

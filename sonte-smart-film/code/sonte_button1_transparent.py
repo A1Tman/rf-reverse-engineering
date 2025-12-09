@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Send a PWM String using RfCat
-# Sonte Smart Film - UP command (make transparent)
+# Sonte Smart Film - Button 1 (make transparent)
 
 import bitstring
 import rflib

@@ -7,14 +7,14 @@
 
 ## Overview
 
-This repository documents two independent RF protocol reverse engineering projects conducted between 2017-2019, demonstrating a consistent methodology for analyzing, decoding, and reimplementing proprietary wireless communication protocols.
+This repository documents two independent RF protocol reverse engineering projects conducted between 2017-2019.
 
 ### Projects
 
 | Project | Frequency | Protocol | Status |
 |---------|-----------|----------|--------|
-| [**Gazco Fireplace Remote**](gazco-fireplace/) | 433.876 MHz | 23-bit PWM (1='100', 0='110') | ✅ Complete |
-| [**Sonte Smart Film Remote**](sonte-smart-film/) | 433.916 MHz | 24-25 bit PWM (1='1000', 0='1110') | ✅ Complete |
+| [**Gazco Fireplace Remote**](gazco-fireplace/) | 433.876 MHz | 23-bit PWM (1='100', 0='110') |
+| [**Sonte Smart Film Remote**](sonte-smart-film/) | 433.916 MHz | 24-25 bit PWM (1='1000', 0='1110') |
 
 Both projects used identical analysis methodologies and tools, starting from unknown RF signals and ending with working Python implementations using RfCat.
 
@@ -61,7 +61,7 @@ See the [Methodology README](methodology/README.md) for detailed documentation o
 ```bash
 git clone https://github.com/A1Tman/rf-reverse-engineering.git
 cd rf-reverse-engineering
-pip install rflib  # RfCat library
+pip install -r requirements.txt
 ```
 
 ### Usage
@@ -78,9 +78,8 @@ python scripts/gazco_down.py  # Decrease temperature
 **Sonte Smart Film Control:**
 ```python
 cd sonte-smart-film/code
-python sonte_controller.py up      # Raise film
-python sonte_controller.py down    # Lower film
-python sonte_controller.py stop    # Stop film
+python sonte_controller.py button1    # Make transparent
+python sonte_controller.py button2    # Make opaque
 ```
 
 ## Project Comparison

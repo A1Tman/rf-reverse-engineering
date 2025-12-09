@@ -4,14 +4,13 @@ Sonte Smart Film RF Controller
 Unified Python controller for smart film commands based on reverse-engineered RF protocol.
 
 Usage (CLI):
-    python sonte_controller.py up      # Make film transparent
-    python sonte_controller.py down    # Make film opaque
-    python sonte_controller.py stop    # Stop film movement
+    python sonte_controller.py button1    # Make film transparent
+    python sonte_controller.py button2    # Make film opaque
 
 Usage (module):
     from sonte_controller import SonteController
     ctrl = SonteController()
-    ctrl.send_command('up')
+    ctrl.send_command('button1')
     ctrl.close()
 
 RF Parameters:
@@ -50,21 +49,15 @@ class SonteController:
         # Command definitions: raw byte payload, packet length, and repeat count
         # Fjernkontrollens kommandoer (Remote control's commands)
         self.commands = {
-            'up': {
+            'button1': {
                 'key': '1111111110111011111100111',
                 'data': b'\x88\x88\x88\x88\xe8\x88\xe8\x88\x88\x88\x8e\x88\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\xe8\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\xe8\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\xe8\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\xe8\x80\x00\x00\x00',
                 'pktlen': 15,
                 'repeats': 1
             },
-            'down': {
+            'button2': {
                 'key': '111111110111011111111101',
                 'data': b'\x88\x88\x88\x88\xe8\x88\xe8\x88\x88\x88\x88\xe8\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00',
-                'pktlen': 16,
-                'repeats': 1
-            },
-            'stop': {
-                'key': '1111111110111011111100111',
-                'data': b'\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\xee\x88\x80\x00\x00\x00' * 4,
                 'pktlen': 16,
                 'repeats': 1
             }
@@ -83,7 +76,7 @@ class SonteController:
         Send a single command to the Sonte smart film.
 
         Args:
-            command: One of 'up', 'down', 'stop'.
+            command: One of 'button1', 'button2'.
 
         Returns:
             True if successful, False otherwise.

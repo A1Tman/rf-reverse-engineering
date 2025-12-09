@@ -6,16 +6,11 @@ This document explains the code structure for both RF reverse engineering projec
 
 ```
 rf-reverse-engineering/
-├── src/gazco_rf/              # Original Python package (for pip install)
-│   ├── controller.py          # Unified Gazco controller class
-│   └── utils/
-│       └── convert_gazco.py   # PWM conversion utility
-│
 ├── gazco-fireplace/           # Gazco project directory
 │   ├── README.md              # Project documentation
 │   ├── buttons.txt            # Raw protocol analysis
 │   └── code/                  # Implementation files
-│       ├── controller.py      # Unified controller (copy of src/)
+│       ├── controller.py      # Unified Gazco controller
 │       ├── scripts/           # Individual command scripts
 │       │   ├── gazco_on.py    # ON command
 │       │   ├── gazco_off.py   # OFF command
@@ -24,14 +19,20 @@ rf-reverse-engineering/
 │       └── utils/
 │           └── convert_gazco.py  # PWM conversion utility
 │
-└── sonte-smart-film/          # Sonte project directory
-    ├── README.md              # Project documentation
-    └── code/                  # Implementation files
-        ├── sonte_controller.py       # Unified controller class
-        ├── sonte_up.py               # UP command (transparent)
-        ├── sonte_down.py             # DOWN command (opaque)
-        ├── sonte_stop.py             # STOP command
-        └── sonte_signal_analyzer.py  # PWM analysis utility
+├── sonte-smart-film/          # Sonte project directory
+│   ├── README.md              # Project documentation
+│   └── code/                  # Implementation files
+│       ├── sonte_controller.py            # Unified controller class
+│       ├── sonte_button1_transparent.py   # Button 1 (transparent)
+│       ├── sonte_button2_opaque.py        # Button 2 (opaque)
+│       └── sonte_signal_analyzer.py       # PWM analysis utility
+│
+├── methodology/               # Shared reverse engineering methodology
+│   ├── README.md              # Step-by-step RF analysis guide
+│   └── screenshots/           # Analysis screenshots (from Sonte session)
+│
+├── requirements.txt           # Python dependencies
+└── README.md                  # Main project documentation
 ```
 
 ## Gazco Fireplace Code
@@ -78,17 +79,16 @@ python gazco_off.py    # Turn off
 from sonte_controller import SonteController
 
 ctrl = SonteController()
-ctrl.send_command('up')    # Make transparent
-ctrl.send_command('stop')  # Stop movement
+ctrl.send_command('button1')    # Make transparent
+ctrl.send_command('button2')    # Make opaque
 ctrl.close()
 ```
 
 **Option 2: Individual Scripts**
 ```bash
 cd sonte-smart-film/code
-python sonte_up.py     # Make transparent
-python sonte_down.py   # Make opaque
-python sonte_stop.py   # Stop
+python sonte_button1_transparent.py   # Make transparent
+python sonte_button2_opaque.py        # Make opaque
 ```
 
 ### Protocol Details
@@ -100,9 +100,8 @@ python sonte_stop.py   # Stop
 
 ### Files
 - `sonte_controller.py` - Unified controller with Norwegian comments
-- `sonte_up.py` - Individual UP command (Norwegian comments: "Fjernkontrollens key")
-- `sonte_down.py` - Individual DOWN command
-- `sonte_stop.py` - Individual STOP command
+- `sonte_button1_transparent.py` - Button 1 command (Norwegian comments: "Fjernkontrollens key")
+- `sonte_button2_opaque.py` - Button 2 command
 - `sonte_signal_analyzer.py` - PWM analysis utility (no RF transmission)
 
 ## Norwegian Comments in Sonte Code
@@ -130,35 +129,21 @@ This reflects the authentic development context and has been preserved in the co
 
 ### As Standalone Scripts
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+
 # Navigate to project directory
 cd gazco-fireplace/code
 python scripts/gazco_on.py
 
 cd sonte-smart-film/code
-python sonte_up.py
-```
-
-### As Python Package (Gazco only)
-```bash
-# Install from source
-pip install -e .
-
-# Use as module
-python -c "from gazco_rf.controller import GazcoController; ctrl = GazcoController(); ctrl.send_command('on')"
+python sonte_button1_transparent.py
 ```
 
 ### Requirements
 ```bash
-pip install rflib bitstring
+pip install -r requirements.txt
 ```
-
-## Relationship Between src/ and Project Directories
-
-- **src/gazco_rf/**: Original Python package structure for pip installation
-- **gazco-fireplace/code/**: Project-specific copy for the dual-project reorganization
-- **sonte-smart-film/code/**: Sonte-specific implementation (new in this reorganization)
-
-The `src/` directory remains for backward compatibility and pip installation support. The project-specific directories are for the new dual-project documentation structure.
 
 ## Testing
 
