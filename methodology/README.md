@@ -69,6 +69,22 @@ For both my projects, they used PWM encoding where different pulse patterns repr
 
 I literally just counted samples in Audacity to figure this out. It's tedious but works.
 
+There are other common encoding schemes you might see:
+- **Manchester encoding**: 1='10', 0='01' (used in Ethernet)
+- **Simple short/long**: 1=short pulse, 0=long pulse (common in cheap 433 MHz remotes)
+
+But both my remotes used custom PWM patterns.
+
+**How to calculate baud rate:**
+```python
+sample_rate = 320000  # Hz (your WAV file sample rate)
+shortest_pulse = 292  # samples (count in Audacity)
+baud_rate = sample_rate / shortest_pulse
+# Result: ~1095 Hz per symbol
+```
+
+This is how I figured out the Gazco used 1095 Hz instead of the 3100 Hz I initially thought.
+
 ### Step 4: Extract the Binary
 
 Once you know the encoding scheme, you can work backwards from the PWM to get the actual binary data.
