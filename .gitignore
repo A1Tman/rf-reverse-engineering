@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.Trash-*/
+.fuse_hidden*
+
+# Project specific - RF captures
+*.bin
+*.raw
+*.iq
+*.wav
+capture_*.bin
+capture_*.wav
+temp_analysis/
+*.pcap
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.old
+
+# Personal notes (in case you add them later)
+notes.txt
+TODO.txt
+personal/
+scratch/
+
+# Build artifacts
+*.o
+*.a
+*.dll
+*.dylib
+
+# Documentation builds
+docs/_build/
+site/
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Config files that might contain secrets
+.env
+.env.local
+config.json
+secrets.json
+credentials.json

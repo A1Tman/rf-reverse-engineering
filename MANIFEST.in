@@ -1,0 +1,15 @@
+# Include top-level metadata
+include LICENSE.md
+include README.md
+include setup.py
+include requirements.txt
+include requirements-dev.txt
+
+# Include documentation
+recursive-include docs *
+
+# Includes all analysis artifacts (screenshots, raw data, protocol docs)
+recursive-include analysis *
+
+# If markdown inside package
+recursive-include src/gazco_rf *.md

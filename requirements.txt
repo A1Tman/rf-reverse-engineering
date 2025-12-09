@@ -1,0 +1,2 @@
+rfcat>=1.1.0         # Installs the RFcat CLI tools and provides the rflib module
+bitstring>=3.1.9     # For PWM → byte conversions
