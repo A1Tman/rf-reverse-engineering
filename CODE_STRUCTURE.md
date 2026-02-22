@@ -63,7 +63,7 @@ python gazco_off.py    # Turn off
 - **Modulation**: ASK/OOK
 - **PWM Encoding**: 1='100', 0='110'
 - **Packet Length**: 23 bits
-- **Baud Rate**: ~3100 Hz (controller.py uses 1095 symbol rate)
+- **Baud Rate**: 1095 Hz (measured from captured signal: 1/292 samples @ 320 kHz)
 
 ### Files
 - `controller.py` - Modern unified controller with error handling

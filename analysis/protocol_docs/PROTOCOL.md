@@ -32,24 +32,22 @@ Each button press transmits a 23‑bit command frame, repeated to ensure reliabi
 
 ## 3. Bitfields
 
-### 3.1 Fixed Header (Bits 22–3)
+### 3.1 Fixed Header (Bits 22–6)
 
 ```
-10000011101110010000
+10000011101110010
 ```
 
-This 20‑bit preamble/sync pattern is constant across all commands.
+This 17‑bit preamble/sync pattern is constant across all commands.
 
-### 3.2 Command Bits (Bits 2–0)
+### 3.2 Command Bits (Bits 5–0)
 
-| Command | Bits [2:0] | Full 23‑bit Pattern              |
-|---------|------------|----------------------------------|
-| **on**  | `100`      | `10000011101110010000`**`100`**  |
-| **off** | `000`      | `10000011101110010000`**`000`**  |
-| **up**  | `001`      | `10000011101110010000`**`001`**  |
-| **down**| `010`      | `10000011101110010000`**`010`**  |
-
-> **Note:** The original remote uses `up` and `on` with identical header+command bits but differentiates by repeat count.
+| Command | Bits [5:0] | Full 23‑bit Pattern                 |
+|---------|------------|-------------------------------------|
+| **on**  | `001100`   | `10000011101110010`**`001100`**    |
+| **off** | `001000`   | `10000011101110010`**`001000`**    |
+| **up**  | `000100`   | `10000011101110010`**`000100`**    |
+| **down**| `000010`   | `10000011101110010`**`000010`**    |
 
 ---
 

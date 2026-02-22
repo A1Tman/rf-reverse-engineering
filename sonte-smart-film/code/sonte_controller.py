@@ -17,7 +17,7 @@ RF Parameters:
     Frequency:      433.916 MHz
     Modulation:     ASK/OOK (Amplitude Shift Keying / On-Off Keying)
     Baud Rate:      2500 Hz
-    Packet Length:  15-16 bits (varies by command)
+    Packet Length:  15-16 bytes (varies by command)
     PWM Encoding:   1 -> '1000' (long high pulse), 0 -> '1110' (long high + short low)
 
 Norwegian Comments:

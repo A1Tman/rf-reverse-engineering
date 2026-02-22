@@ -92,7 +92,7 @@ python sonte_controller.py button2    # Make opaque
 | **PWM Encoding** | 1='100', 0='110' | 1='1000', 0='1110' |
 | **Baud Rate** | 1095 Hz | ~2500 Hz |
 | **Sample Timing** | 1=300, 0=600 @ 320kHz | Different timing |
-| **Commands** | ON/OFF/UP/DOWN | UP/DOWN/STOP/PROG |
+| **Commands** | ON/OFF/UP/DOWN | Transparent/Opaque |
 
 ## Repository Structure
 

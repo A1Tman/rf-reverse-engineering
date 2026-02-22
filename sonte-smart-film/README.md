@@ -263,9 +263,10 @@ The methodology is generalizable to other RF protocols in the 433 MHz ISM band, 
 sonte-smart-film/
 ├── README.md              # This file
 └── code/
-    ├── sonte_controller.py   # Main controller (Norwegian comments)
-    ├── pwm_encode.py         # PWM encoding utilities
-    └── config.py             # Configuration parameters
+    ├── sonte_controller.py            # Unified controller class
+    ├── sonte_button1_transparent.py   # Button 1 (make transparent)
+    ├── sonte_button2_opaque.py        # Button 2 (make opaque)
+    └── sonte_signal_analyzer.py       # PWM analysis utility
 ```
 
 **Note**: The actual code files contain Norwegian language comments from the original development session.
