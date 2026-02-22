@@ -19,6 +19,16 @@ This is how I figured out the RF protocols for the Gazco fireplace and Sonte sma
 
 ## The Process
 
+### Step 0: Check the FCC Database First
+
+Before touching the SDR, I looked up the device in the FCC database at [fcc.gov/oet/ea/fccid](https://www.fcc.gov/oet/ea/fccid). Any wireless device sold in the US has to go through FCC certification, and the test reports are public. The FCC ID is usually printed on a label on the back of the remote or in the manual.
+
+The test report gives you the declared carrier frequency, modulation type, and occupied bandwidth - basically a head start before you've captured anything. For the Gazco remote this confirmed I was looking at 433 MHz and gave me a precise frequency to tune to rather than scanning the whole band. Then after capturing and decoding the signal I could cross-check my measured frequency against the declared value to make sure I hadn't drifted.
+
+The PDFs are in the [docs/](../docs/) folder if you want to see what I was working from.
+
+Not every device will have an FCC filing - stuff sold only in Europe goes through CE marking instead, which isn't as publicly searchable. But if there's an FCC ID on it, always check there first.
+
 ### Step 1: Find the Frequency
 
 First thing is figuring out what frequency the remote transmits on. Most consumer remotes use the 433 MHz ISM band since it doesn't require a license.
