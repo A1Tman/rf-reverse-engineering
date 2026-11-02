@@ -74,7 +74,7 @@ older releases may discard those errors internally.
 
 ### Explore without hardware
 
-Use Python 3.10 or newer. Clone this public repository and optionally create a
+Use Python 3.11 or newer. Clone this public repository and optionally create a
 virtual environment. The controller dry runs and regression tests need only
 the Python standard library; no private checkout or dependency installation is
 required.
@@ -102,12 +102,14 @@ python tools/check_documentation.py
 
 Dry runs print full recorded bytes and settings. Tests compare the profiles
 against independent frozen fixtures and check failure handling with fake radios.
-The optional analysis utilities need `bitstring`:
+The optional analysis utilities use `bitstring` 4.x, matching the maintained
+radio and RF_Projects environments. Install their requirements separately:
 
 ```bash
-python -m pip install bitstring
+python -m pip install -r requirements.txt
 python gazco-fireplace/code/utils/convert_gazco.py
 python sonte-smart-film/code/sonte_signal_analyzer.py
+python tools/check_converters.py
 ```
 
 ### Radio access for maintainers
@@ -117,18 +119,18 @@ the relevant target device, and a compatible RfCat installation. Raw waveform
 analysis also needs an SDR receiver and its recording software.
 
 The maintained [rfcat_py3 repository](https://github.com/A1Tman/rfcat_py3) is
-private. With access, place it beside this checkout and install its reviewed
-`codex/replay-analysis-reliability` branch (the previously pushed checkpoint is
-`c504cf3`):
+private. With access, place its reviewed checkout beside this repository and
+install that source directly:
 
 ```bash
 python -m pip install -e "../rfcat_py3[hardware]"
 ```
 
-An older public RfCat release may work through the legacy `None` return-value
-compatibility path, but cannot report firmware statuses it discards. The
-historical `requirements.txt` selects a public package; it is not a lock file
-for the maintained fork. See [compatibility and validation limits](TRANSMISSIONS.md#inspect-and-test-without-hardware).
+`requirements.txt` contains only the optional offline converter dependency;
+it does not install or replace RfCat. The maintained checkout is the documented
+live-radio path. The shared sender retains legacy `None` return-value handling,
+but that compatibility cannot recover firmware statuses an older library
+discarded. See [compatibility and validation limits](TRANSMISSIONS.md#inspect-and-test-without-hardware).
 
 ### Usage
 
@@ -194,7 +196,7 @@ rf-reverse-engineering/
 - **SDR Software**: SDR#, HDSDR, GNU Radio
 - **Analysis Tools**: Audacity, Python (numpy, matplotlib)
 - **Hardware**: RfCat (YARD Stick One), RTL-SDR
-- **Languages**: Python 3.10+
+- **Languages**: Python 3.11+
 
 ## Legal & Safety
 

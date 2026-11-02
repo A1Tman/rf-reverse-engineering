@@ -6,7 +6,7 @@ work easier to reproduce without losing the evidence behind its choices.
 
 ## Work offline first
 
-Python 3.10 or newer is sufficient for the controller dry runs and tests.
+The supported baseline is Python 3.11 or newer for the controller dry runs and tests.
 They use the standard library and do not require RfCat, a dongle, or access to
 the maintainer's private repositories. From the repository root:
 
@@ -23,9 +23,20 @@ python -m unittest discover -s tests -v
 python tools/check_documentation.py
 ```
 
-CI runs these on Python 3.10, 3.11, and 3.12. The optional conversion utilities
-need `bitstring`; actual transmission needs a compatible RfCat installation.
-See the [installation guide](README.md#quick-start) for those separate paths.
+CI runs these without installing dependencies on Python 3.11, 3.12, and 3.13.
+A separate job installs the optional converter requirements, checks dependency
+consistency, verifies frozen converter outputs, and audits those requirements:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip check
+python tools/check_converters.py
+```
+
+The supported `bitstring` 4.x range is shared with the maintained radio stack.
+Routine Dependabot updates stay within it; a major-version change needs a
+coordinated compatibility review. Actual transmission uses the maintained
+private RfCat checkout described in the [installation guide](README.md#quick-start).
 
 ## Preserve transmission evidence
 

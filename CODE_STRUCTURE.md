@@ -40,7 +40,8 @@ python sonte-smart-film/code/sonte_controller.py original --dry-run
 python sonte-smart-film/code/sonte_button1_transparent.py --dry-run
 ```
 
-The optional conversion utilities require `bitstring`. They calculate encodings,
+The optional conversion utilities use `bitstring` 4.x from `requirements.txt`.
+They calculate encodings,
 not complete transmit bursts. See [the public quick start](README.md#quick-start)
 and [the analysis guide](analysis/protocol_docs/signal_analysis.md).
 
@@ -96,6 +97,10 @@ Run from the repository root:
 python -m unittest discover -s tests -v
 python tools/check_documentation.py
 ```
+
+After installing the optional requirements, `python tools/check_converters.py`
+checks both conversion utilities against frozen output bytes without loading
+radio modules. The core checks above require no dependency installation.
 
 The tests use fake radios and independent saved fixtures. They do not establish
 new hardware or physical-device results.

@@ -50,7 +50,7 @@ the complete preserved transmit bursts, which contain historical additional
 bytes, padding, and repetition. From the repository root:
 
 ```bash
-python -m pip install bitstring
+python -m pip install -r requirements.txt
 python gazco-fireplace/code/utils/convert_gazco.py
 python sonte-smart-film/code/sonte_signal_analyzer.py
 ```

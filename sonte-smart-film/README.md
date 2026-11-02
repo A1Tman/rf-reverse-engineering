@@ -183,7 +183,7 @@ python sonte_button2_opaque.py
 ### For Control
 - **RfCat Device**: YARD Stick One or cc1111-based USB dongle
 - **Target Device**: Sonte smart film installation
-- **Computer**: Python 3.10+ with RfCat support
+- **Computer**: Python 3.11+ with RfCat support
 
 ### For Analysis
 - **SDR Receiver**: RTL-SDR, HackRF, or similar
