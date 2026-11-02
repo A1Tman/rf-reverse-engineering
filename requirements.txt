@@ -1,2 +1,4 @@
-rfcat>=1.1.0         # Installs the RFcat CLI tools and provides the rflib module
-bitstring>=3.1.9     # For PWM → byte conversions
+# Optional dependencies for the two offline PWM conversion utilities.
+# Controllers, dry runs, documentation checks, and core tests use only stdlib.
+# Install the maintained RfCat checkout separately for live radio access.
+bitstring>=4,<5

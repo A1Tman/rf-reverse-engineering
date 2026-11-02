@@ -97,7 +97,7 @@ not this excerpt, when comparing transmit bytes.
 ### For Control (Minimum)
 - **RfCat compatible device**: YARD Stick One, cc1111-based USB dongle
 - **Target device**: Gazco fireplace with G6R remote system
-- **Computer**: Any system supporting Python 3.10+ and RfCat
+- **Computer**: Any system supporting Python 3.11+ and RfCat
 
 ### For Analysis (Optional)
 - **SDR Receiver**: RTL-SDR, HackRF, or similar
