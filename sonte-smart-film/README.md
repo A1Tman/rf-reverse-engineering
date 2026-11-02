@@ -7,11 +7,22 @@
 
 ## Overview
 
-This project documents the complete reverse engineering of the Sonte smart film remote control system operating at 433.916 MHz. The analysis was conducted in February 2019 and systematically documented with screenshots at each phase, providing a complete visual workflow of the RF reverse engineering process.
+This project documents the author's Sonte smart film remote analysis at
+433.916 MHz and the preserved controller implementation. The analysis dates to
+February 2019, with screenshots illustrating the capture and decoding workflow.
 
-The protocol uses a 24-25 bit command structure with PWM encoding (1='1000', 0='1110'), successfully reimplemented using RfCat for programmatic control of smart film opacity.
+The recorded keys contain 24–25 logical bits with PWM encoding
+(1='1000', 0='1110'). The historical account reports successful control of film
+opacity; current offline tests verify the saved bytes and software behavior.
 
 **Documentation**: All analysis workflow screenshots in the [methodology/screenshots](../methodology/screenshots/) directory are from this project, captured during the February 3, 2019 analysis session. These screenshots provide a complete visual guide to the RF reverse engineering process and are referenced throughout the methodology documentation.
+
+## Preserved transmissions
+
+The controller and button scripts share immutable profiles in
+`code/sonte_profiles.py`. `button1` and `button2` preserve their existing bytes
+and labels. `original` restores the 64-byte 2024 transmission without assigning
+it a physical button meaning. See [transmission provenance](../TRANSMISSIONS.md).
 
 ## Technical Specifications
 
@@ -21,9 +32,9 @@ The protocol uses a 24-25 bit command structure with PWM encoding (1='1000', 0='
 | **Modulation** | ASK/OOK (On-Off Keying) |
 | **Encoding** | PWM (Pulse Width Modulation) |
 | **PWM Mapping** | 1='1000', 0='1110' |
-| **Packet Length** | 24-25 bits |
-| **Baud Rate** | ~2500 Hz |
-| **Protocol Type** | Fixed code with multiple channels |
+| **Decoded command length** | 24-25 logical bits; separate from the RFcat FLEN byte setting |
+| **Data-rate setting** | 2500 symbols/s |
+| **Recorded controls** | Two fixed button patterns; channel semantics are not inferred |
 
 ## Command Protocol
 
@@ -41,12 +52,15 @@ The Sonte remote has two buttons for controlling smart film state:
 The protocol uses a more complex PWM encoding compared to simpler 433 MHz devices:
 
 ```
-Binary '1' → PWM '1000' → Long high + short low
+Binary '1' → PWM '1000' → One high unit + three low units
 Binary '0' → PWM '1110' → Long high + very short low
 
-This encoding provides better noise immunity at the cost of
-lower data rate (~2500 Hz vs ~3100 Hz for simpler schemes).
+Each logical bit occupies four high/low units.
 ```
+
+The table retains the historical button labels and decoded keys. Current
+regression tests preserve their recorded bytes; they do not reverify the
+physical transparent/opaque mapping or establish comparative noise immunity.
 
 **Example Command Structure**:
 ```
@@ -65,7 +79,7 @@ This project was documented systematically with screenshots at each analysis pha
 *SDR# waterfall display showing the 433.916 MHz signal. Note the clear vertical lines indicating button press transmissions in the ISM band.*
 
 **Key Observations**:
-- Frequency: 433.916 MHz (confirmed in later code analysis)
+- Recorded controller frequency setting: 433.916 MHz
 - Clean signal with minimal adjacent interference
 - Consistent timing between packet bursts
 - Multiple repetitions per button press
@@ -93,13 +107,15 @@ This project was documented systematically with screenshots at each analysis pha
 - Identify two distinct patterns
 - Map patterns to binary values
 
-**Timing Measurements**:
+**Timing interpretation at the preserved data-rate setting**:
 ```
-At 320 kHz sampling rate:
-  High pulse (1): ~1000 pattern duration
-  Low pulse (0):  ~1110 pattern duration
-  Distinguishable by the trailing low duration
+At 2500 symbols/s, one high/low unit is 0.4 ms:
+  Logical 1 (1000): high 0.4 ms, low 1.2 ms
+  Logical 0 (1110): high 1.2 ms, low 0.4 ms
 ```
+
+These durations follow from the setting and mapping; they are not new
+measurements of the screenshots or the installed dongle's output.
 
 ### Phase 4: Signal Processing
 
@@ -119,56 +135,34 @@ decoded = map_pwm_to_binary(pulses)
 ### Phase 5: Frequency Domain Validation
 
 ![Frequency Domain Analysis](../methodology/screenshots/05_frequency_domain_analysis_gnuradio.png)
-*GNU Radio FFT display confirming the 433.916 MHz center frequency and signal bandwidth. The clean spectral peak validates proper frequency identification.*
+*Retained GNU Radio FFT view from the historical workflow. Its relative
+frequency axis needs receiver tuning metadata to establish an absolute carrier.*
 
-**Validation Results**:
-- ✅ Center frequency: 433.916 MHz (confirmed)
-- ✅ Bandwidth: ~5 kHz (consistent with 2500 Hz baud rate)
-- ✅ No spurious emissions
-- ✅ Signal-to-noise ratio: >25 dB
+**Historical interpretations and current limits**:
+- The recorded controller setting is 433.916 MHz.
+- Earlier documentation described approximately 5 kHz bandwidth and SNR above
+  25 dB. The retained screenshot alone does not establish those measurements
+  or their method; retain them as historical reports pending supporting data.
+- No current emissions measurement is included. The screenshot cannot establish
+  an absence of spurious emissions or regulatory compliance.
 
 ## Implementation
 
-### Python Code (Norwegian Comments)
+### Programmatic control
 
-The original implementation includes Norwegian language comments reflecting the development context:
+From the `code` directory:
 
 ```python
-import rflib
+from sonte_controller import SonteController
 
-class SonteController:
-    def __init__(self):
-        self.d = rflib.RfCat()
-        self.d.setFreq(433916000)  # 433.916 MHz - confirmed from analysis
-        self.d.setMdmModulation(rflib.MOD_ASK_OOK)
-        self.d.setMdmDRate(2500)   # ~2500 Hz baud rate
-
-    def send_command(self, command):
-        """
-        Sender kommando til Sonte smart film
-        (Sends command to Sonte smart film)
-        """
-        pwm_data = self.encode_pwm(command)
-        # Fullstendig PWM key (Complete PWM key)
-        for _ in range(10):  # Repeat for reliability
-            self.d.RFxmit(pwm_data)
-            time.sleep(0.01)
-
-    def encode_pwm(self, binary_cmd):
-        """
-        Konverterer binær til PWM format
-        (Converts binary to PWM format)
-        1 = '1000'
-        0 = '1110'
-        """
-        pwm = ''
-        for bit in binary_cmd:
-            if bit == '1':
-                pwm += '1000'  # High pulse
-            else:
-                pwm += '1110'  # Low pulse
-        return self.pwm_to_bytes(pwm)
+controller = SonteController()  # No radio opened until send_command.
+if not controller.send_command('original'):
+    raise RuntimeError('Sonte transmission could not be submitted')
 ```
+
+The send path idles the radio after success or failure. The original complete
+64-byte burst is kept separate from the two existing 79-byte button profiles;
+no button mapping is inferred from their labels or calculated keys.
 
 ### Usage Examples
 
@@ -176,7 +170,8 @@ class SonteController:
 # Control smart film state
 cd code
 python sonte_controller.py button1    # Make film transparent
-python sonte_controller.py button2    # Make film opaque
+python sonte_controller.py button2    # Existing opaque label
+python sonte_controller.py original --dry-run  # Inspect the older transmission
 
 # Or use individual button scripts
 python sonte_button1_transparent.py
@@ -188,7 +183,7 @@ python sonte_button2_opaque.py
 ### For Control
 - **RfCat Device**: YARD Stick One or cc1111-based USB dongle
 - **Target Device**: Sonte smart film installation
-- **Computer**: Python 3.6+ with RfCat support
+- **Computer**: Python 3.10+ with RfCat support
 
 ### For Analysis
 - **SDR Receiver**: RTL-SDR, HackRF, or similar
@@ -199,14 +194,17 @@ python sonte_button2_opaque.py
 
 **Analysis Session: February 3, 2019**
 
-This project was completed in a single focused analysis session with systematic documentation:
+The historical documentation describes one focused session, with this reported
+schedule. The exact hours are retained as the author's account rather than
+independently established from the screenshots:
 
 - **09:00-10:30**: Frequency discovery and signal capture
 - **10:30-12:00**: PWM pattern analysis and decoding
 - **12:00-13:30**: Python implementation and testing
 - **13:30-14:30**: Validation and documentation
 
-All five workflow screenshots were captured during this session, providing a complete record of the reverse engineering process.
+The five workflow screenshots are attributed to this session. They illustrate
+its stages but are not a complete raw-capture dataset or a new hardware test.
 
 ## Comparison with Gazco Project
 
@@ -214,7 +212,7 @@ All five workflow screenshots were captured during this session, providing a com
 |--------|---------------------|------------------|
 | **Frequency** | 433.916 MHz | 433.876 MHz |
 | **PWM Encoding** | 1='1000', 0='1110' | 1='100', 0='110' |
-| **Baud Rate** | ~2500 Hz | ~3100 Hz |
+| **Baud Rate** | ~2500 Hz | 1095 Hz |
 | **Bit Length** | 24-25 bits | 23 bits |
 | **Documentation** | Fully documented with screenshots | Retrospective documentation |
 | **Timeline** | February 2019 | 2017-2018 |
@@ -226,22 +224,20 @@ Both projects used identical methodology and tools, demonstrating the repeatabil
 
 This project serves as the reference implementation for the [RF Reverse Engineering Methodology](../methodology/README.md) documented in this repository. All workflow screenshots and detailed process descriptions are based on this February 2019 analysis session.
 
-The methodology is generalizable to other RF protocols in the 433 MHz ISM band, with only frequency and encoding parameters varying between devices.
+The capture-and-compare approach can be reused, but other devices may differ in
+framing, checksums, addressing, timing, and stateful protocols as well as carrier
+and encoding. The preserved settings apply to these recorded transmissions.
 
 ## Testing & Validation
 
-**Functional Testing**:
-- ✅ UP command increases film transparency
-- ✅ DOWN command decreases film transparency
-- ✅ STOP command halts operation
-- ✅ PROG command enters programming mode
-- ✅ Range matches original remote performance
+Run `python -m unittest discover -s tests -v` from the repository root.
+Hardware-free fixtures verify exact bytes, settings, one-burst calls, wrapper
+agreement, failures and cleanup. The `original` fixture comes from the 2024
+script, not an inferred button mapping.
 
-**Protocol Validation**:
-- ✅ PWM encoding matches captured patterns
-- ✅ Timing accuracy confirmed via oscilloscope
-- ✅ Frequency measured: 433.916 MHz ±2 kHz
-- ✅ Multiple smart film units respond correctly
+No new hardware test was performed. The retained fixtures do not establish
+STOP/PROG commands, range, emissions, or oscilloscope validation. Current target
+response and the mapping of `original` still require a separate hardware check.
 
 ## Safety & Legal
 
@@ -252,8 +248,7 @@ The methodology is generalizable to other RF protocols in the 433 MHz ISM band, 
 - Maintain manual remote as backup control
 
 **Legal Compliance**:
-- 433 MHz ISM band: unlicensed operation permitted
-- Complies with local RF regulations
+- Check the applicable RF requirements for the equipment and location
 - For educational and personal use only
 - Only control devices you own
 
@@ -263,7 +258,8 @@ The methodology is generalizable to other RF protocols in the 433 MHz ISM band, 
 sonte-smart-film/
 ├── README.md              # This file
 └── code/
-    ├── sonte_controller.py            # Unified controller class
+    ├── sonte_controller.py            # Controller and CLI
+    ├── sonte_profiles.py              # Shared immutable recorded bursts
     ├── sonte_button1_transparent.py   # Button 1 (make transparent)
     ├── sonte_button2_opaque.py        # Button 2 (make opaque)
     └── sonte_signal_analyzer.py       # PWM analysis utility
@@ -291,14 +287,15 @@ Potential improvements for this project:
 import rflib
 d = rflib.RfCat()
 d.setFreq(433916000)
-print(f"Set frequency: {d.getFreq()} Hz")
-# Should output: 433916000
+frequency, register_hex = d.getFreq()
+print(f"Configured frequency: {frequency} Hz")
+# Compare the quantized register setting with the intended 433916000 Hz.
 ```
 
 **Common issues**:
 - Frequency drift: Some RfCat devices need calibration
 - PWM encoding error: Verify 1='1000', 0='1110'
-- Insufficient repetitions: Try increasing from 10 to 15
+- Repetition/padding: Compare the complete preserved profile with a fresh capture before changing its bytes
 - Interference: 433 MHz band is crowded
 
 ### Analysis Issues
@@ -341,7 +338,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](../CONTRIBUTING.md) for 
 
 ---
 
-**Project Status**: ✅ Complete and documented (February 2019)
+**Project Status**: Recorded profiles preserved; new hardware validation pending.
 
 **Documentation**: Reference implementation for RF reverse engineering methodology
 

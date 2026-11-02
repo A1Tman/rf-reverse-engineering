@@ -7,9 +7,20 @@
 
 ## Overview
 
-This project documents the complete reverse engineering of the Gazco fireplace remote control system operating at 433.876 MHz. The analysis revealed a 23-bit command structure using PWM encoding, which has been successfully reimplemented using RfCat for programmatic control.
+This project documents the author's Gazco fireplace remote experiments at
+433.876 MHz and the preserved Python implementation. The recorded commands
+contain 23 logical bits encoded as PWM. Their proposed field meanings remain
+hypotheses; the implementation submits the complete saved patterns.
 
 **Documentation Note**: The RF analysis workflow screenshots referenced in the [methodology](../methodology/) directory are from a parallel RF project (Sonte smart film at 433.916 MHz) conducted in February 2019. The Gazco analysis was performed earlier (2017-2018) before systematic documentation practices were established. However, the methodology, tools, and process were identical - only the frequency and protocol-specific parameters differ between projects.
+
+## Preserved transmissions
+
+The controller and individual scripts now use identical recorded bursts from
+`code/gazco_profiles.py`. The defaults preserve the standalone scripts. The
+explicit `down_notes_19` variant retains the earlier note's nineteen repetitions;
+`down` still uses ten. ON retains seven trailing zero bytes, although the earlier
+note lists six. See [provenance and limitations](../TRANSMISSIONS.md).
 
 ## Technical Specifications
 
@@ -19,10 +30,10 @@ This project documents the complete reverse engineering of the Gazco fireplace r
 | **Modulation** | ASK/OOK (On-Off Keying) |
 | **Encoding** | PWM (Pulse Width Modulation) |
 | **PWM Mapping** | 1='100', 0='110' |
-| **Packet Length** | 23 bits |
-| **Baud Rate** | 1095 Hz |
-| **Sample Timing** | 1=300 samples, 0=600 samples @ 320kHz |
-| **Pause Duration** | 300 samples |
+| **Decoded command length** | 23 logical bits; separate from the RFcat FLEN byte setting |
+| **Data-rate setting** | 1095 symbols/s |
+| **Historical timing notes** | Short/long high pulses roughly 300/600 samples at 320 kHz; shortest measured pulse 292 samples |
+| **Inter-frame gaps** | Preserved in recorded frame bytes and padding; no host-side sleeps |
 
 ## Command Protocol
 
@@ -30,23 +41,26 @@ This project documents the complete reverse engineering of the Gazco fireplace r
 
 All commands follow a consistent 23-bit structure with different trailing bits to distinguish button functions.
 
-| Command | Binary Pattern | PWM Bytestring | Repeats |
+| Command | Binary Pattern | Encoded logical command (not the complete burst) | Recorded frames |
 |---------|---------------|----------------|---------|
 | **ON** | `10000011101110010001100` | `\x9bm\xa4\x9aI\xb4\xdbI\xb0` | 9 |
 | **OFF** | `10000011101110010001000` | `\x9bm\xa4\x9aI\xb4\xdbM\xb0` | 10 |
 | **UP** | `10000011101110010000100` | `\x9bm\xa4\x9aI\xb4\xdbi\xb0` | 10 |
-| **DOWN** | `10000011101110010000010` | `\x9bm\xa4\x9aI\xb4\xdbm0` | 19 |
+| **DOWN** | `10000011101110010000010` | `\x9bm\xa4\x9aI\xb4\xdbm0` | 10 by default; 19 with `down_notes_19` |
 
 ### Protocol Analysis
 
-**Packet Structure** (23 bits):
+**Proposed field interpretation** (23 bits; not confirmed):
 ```
 Preamble: 1000001 (7 bits)
 Address:  1101110010 (10 bits)
 Command:  000XXX (6 bits)
 ```
 
-**Command Bits** (last 6 bits):
+The shared prefix and different suffixes are observed in these four patterns.
+Their interpretation as preamble/address/command was not verified.
+
+**Varying suffix** (last 6 bits):
 - ON:   `001100`
 - OFF:  `001000`
 - UP:   `000100`
@@ -60,10 +74,10 @@ The protocol uses a simple PWM encoding scheme where binary data is converted to
 Binary '1' → PWM '100' → Short pulse + pause
 Binary '0' → PWM '110' → Long pulse + pause
 
-Timing (at 320 kHz sampling):
-  '1' pulse:  300 samples (~0.94 ms)
-  '0' pulse:  600 samples (~1.88 ms)
-  Pause:      300 samples (~0.94 ms)
+At the preserved 1095 symbols/s setting:
+  One high/low unit: approximately 0.913 ms
+  '1': high for one unit, low for two units
+  '0': high for two units, low for one unit
 ```
 
 **Example - UP Button**:
@@ -73,12 +87,17 @@ PWM:        10011011011011011010010010011010010010011011010011011011011010011011
 Bytestring: \x9bm\xa4\x9aI\xb4\xdbi\xb0
 ```
 
+This is the byte-aligned encoding of the logical key. The complete recorded
+UP/DOWN frames also retain an additional `b0` and zero padding. Use the full
+profiles described in the [protocol reference](../analysis/protocol_docs/PROTOCOL.md),
+not this excerpt, when comparing transmit bytes.
+
 ## Hardware Requirements
 
 ### For Control (Minimum)
 - **RfCat compatible device**: YARD Stick One, cc1111-based USB dongle
 - **Target device**: Gazco fireplace with G6R remote system
-- **Computer**: Any system supporting Python 3.6+ and RfCat
+- **Computer**: Any system supporting Python 3.10+ and RfCat
 
 ### For Analysis (Optional)
 - **SDR Receiver**: RTL-SDR, HackRF, or similar
@@ -88,14 +107,11 @@ Bytestring: \x9bm\xa4\x9aI\xb4\xdbi\xb0
 ## Installation
 
 ### Prerequisites
-```bash
-# Install RfCat library
-pip install rflib
 
-# Clone repository
-git clone https://github.com/A1Tman/rf-reverse-engineering.git
-cd rf-reverse-engineering/gazco-fireplace
-```
+The [public quick start](../README.md#quick-start) needs no hardware or external
+packages for dry runs and tests. For actual transmissions, follow the separate
+[radio setup](../README.md#radio-access-for-maintainers). The import is named
+`rflib`; do not install an unrelated package by that name.
 
 ### Verify RfCat Connection
 ```bash
@@ -122,54 +138,32 @@ python gazco_down.py    # Decrease temperature
 
 ### Programmatic Control
 
-Use the unified controller class for integration:
+From `gazco-fireplace/code`, use the unified controller class for integration:
 
 ```python
 from controller import GazcoController
 
-# Initialize controller
-controller = GazcoController()
-
-# Send commands
-controller.send_command('on')      # Power on
-time.sleep(1)
-controller.send_command('up')      # Increase temp
-time.sleep(1)
-controller.send_command('off')     # Power off
-
-# Clean up
-controller.close()
+controller = GazcoController()  # Opens hardware only for a valid actual send.
+if not controller.send_command('on'):
+    raise RuntimeError('Gazco transmission could not be submitted')
 ```
 
-### Advanced Usage
+Each send attempts IDLE cleanup. A successful return means the recorded burst
+was submitted, not that the fireplace acknowledged or acted on it.
 
-Direct binary command transmission:
+### Inspect the exact waveform
 
-```python
-import rflib
-import time
+From the repository root:
 
-# Initialize RfCat
-d = rflib.RfCat()
-
-# Configure radio parameters
-d.setFreq(433876000)               # 433.876 MHz
-d.setMdmModulation(rflib.MOD_ASK_OOK)
-d.setMdmDRate(3100)                # Baud rate
-d.makePktFLEN(23)                  # 23-bit packets
-
-# Define command (UP button)
-cmd_binary = '10000011101110010000100'
-cmd_pwm = convert_to_pwm(cmd_binary)  # Convert using PWM rules
-
-# Transmit with repetitions
-for _ in range(10):
-    d.RFxmit(cmd_pwm)
-    time.sleep(0.01)
-
-# Clean up
-d.setModeIDLE()
+<!-- offline-smoke -->
+```bash
+python gazco-fireplace/code/controller.py on --dry-run
+python gazco-fireplace/code/controller.py down_notes_19 --dry-run
 ```
+
+The 1095 baud rate, padding, and frame repetitions are preserved. A complete
+burst is submitted in one call; do not replace its embedded gaps with host-side
+sleep calls. `down_notes_19` is a 304-byte alternative, not a new default.
 
 ## Code Structure
 
@@ -179,7 +173,8 @@ gazco-fireplace/
 ├── buttons.txt            # Raw protocol analysis data
 └── code/
     ├── __init__.py
-    ├── controller.py      # Main unified controller class
+    ├── controller.py      # Controller and CLI
+    ├── gazco_profiles.py  # Shared immutable recorded bursts
     ├── scripts/           # Individual command scripts
     │   ├── __init__.py
     │   ├── gazco_on.py    # ON command
@@ -193,7 +188,9 @@ gazco-fireplace/
 
 ## Reverse Engineering Process
 
-The analysis followed the standard RF reverse engineering methodology documented in the [methodology](../methodology/) directory:
+The author's historical account follows the methodology documented in the
+[methodology](../methodology/) directory. These steps describe the earlier
+experiments, not new hardware tests of the current revision:
 
 1. **Frequency Discovery**: Located 433.876 MHz carrier using SDR receiver
 2. **Signal Capture**: Recorded raw button presses with HDSDR
@@ -221,22 +218,14 @@ pause=300 samples
 
 ## Testing & Validation
 
-The implementation has been validated through:
+Run `python -m unittest discover -s tests -v` from the repository root.
+Hardware-free tests compare every controller and wrapper transmission against
+frozen source bytes, radio settings, and hashes. They also verify failure
+reporting, cleanup, and harmless imports/help/dry runs.
 
-- ✅ **Functional Testing**: All four commands operate correctly
-- ✅ **Timing Verification**: PWM timing matches original remote
-- ✅ **Repetition Testing**: Correct number of packet repeats
-- ✅ **Range Testing**: Performance matches manufacturer specifications
-- ✅ **Interference Analysis**: No issues in typical 433 MHz environments
-
-### Test Procedure
-
-1. Power on fireplace manually
-2. Test ON command - verify ignition
-3. Test UP command - observe temperature increase
-4. Test DOWN command - observe temperature decrease
-5. Test OFF command - verify shutdown
-6. Measure response time and reliability
+No new physical-device or range tests were performed. Earlier hardware-testing
+claims in this documentation are not independently verified. The original
+notes remain preserved, including the unresolved ON and DOWN discrepancies.
 
 ## Troubleshooting
 
@@ -244,17 +233,19 @@ The implementation has been validated through:
 
 **Check RfCat Configuration**:
 ```python
+import rflib
 d = rflib.RfCat()
-print(f"Frequency: {d.getFreq()}")          # Should be 433876000
+frequency, register_hex = d.getFreq()
+print(f"Frequency: {frequency} Hz")        # Compare with the selected profile.
 print(f"Modulation: {d.getMdmModulation()}") # Should be MOD_ASK_OOK
-print(f"Data Rate: {d.getMdmDRate()}")      # Should be ~3100
+print(f"Data Rate: {d.getMdmDRate()}")      # Should be ~1095
 ```
 
 **Common Issues**:
 - Frequency drift: Verify 433.876 MHz exactly
 - Insufficient power: Check RfCat transmission power settings
 - Timing errors: Ensure baud rate is correct
-- Missing repeats: Commands require 9-19 repetitions
+- Repetition differences: Check the selected recorded profile and the documented ten/nineteen-frame DOWN alternatives in [TRANSMISSIONS.md](../TRANSMISSIONS.md).
 
 ### Interference Issues
 
@@ -266,8 +257,8 @@ The 433 MHz band is crowded with many devices:
 
 **Solutions**:
 - Test in different location
-- Increase packet repetitions
-- Add error detection logic
+- Compare a new capture with the selected preserved burst before changing it
+- Record failed submissions and observed target responses separately
 - Verify frequency accuracy
 
 ## Safety Considerations
@@ -297,12 +288,9 @@ This project controls gas fireplace equipment, which presents potential safety h
 
 ### Radio Regulations
 
-**FCC Part 15 (United States)**:
-- 433 MHz ISM band operation permitted
-- Low power unlicensed operation
-- No harmful interference to licensed services
-
-**Similar regulations apply in other jurisdictions** - verify local requirements.
+Check the applicable frequency, power, duty-cycle, and equipment requirements
+for your location. The historical device reports and saved controller settings
+do not certify a new transmitter or establish compliance for another setup.
 
 ### Intellectual Property
 
@@ -349,6 +337,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](../CONTRIBUTING.md) for 
 
 ---
 
-**Project Status**: ✅ Complete and functional (2017-2018)
+**Project Status**: Recorded profiles preserved; new hardware validation pending.
 
 **Last Updated**: 2024 (documentation)

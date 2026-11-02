@@ -1,29 +1,7 @@
 #!/usr/bin/env python3
-# Send a PWM String using RfCat
-# Sonte Smart Film - Button 2 (make opaque)
+"""Sonte button2: preserve the existing byte pattern and button label."""
 
-import bitstring
-import rflib
+from sonte_controller import main
 
-prefix = ''
-# Fjernkontrollens key (The key from our static key remote)
-key = '111111110111011111111101'
-
-pwm_key = ''.join(['1000' if b == '1' else '1110' for b in key])
-full_pwm = '{}{}'.format(prefix, pwm_key)
-print('Fullstendig PWM key: {}'.format(full_pwm))
-
-rf_data = bitstring.BitArray(bin=full_pwm).tobytes()
-print("Byte string: ",rf_data)
-print("PWM Key: ",pwm_key)
-
-d = rflib.RfCat()
-d.setMdmModulation(rflib.MOD_ASK_OOK)
-d.makePktFLEN(16)
-d.setMdmDRate(2500)
-d.setMdmSyncMode(0)
-d.setFreq(433916000)
-d.setMaxPower()
-
-d.RFxmit(b'\x88\x88\x88\x88\xe8\x88\xe8\x88\x88\x88\x88\xe8\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00\x88\x88\x88\x88\x8e\x88\x8e\x88\x88\x88\x88\x8e\x80\x00\x00\x00')
-d.setModeIDLE()
+if __name__ == '__main__':
+    raise SystemExit(main(default_command='button2'))
