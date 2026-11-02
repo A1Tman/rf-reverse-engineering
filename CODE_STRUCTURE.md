@@ -1,176 +1,101 @@
-# Code Organization
+# Code organization
 
-This document explains the code structure for both RF reverse engineering projects.
+The two controllers share one hardware-lazy sender. Imports, controller
+construction, help, and dry runs do not open a dongle.
 
-## Directory Structure
-
-```
+```text
 rf-reverse-engineering/
-├── gazco-fireplace/           # Gazco project directory
-│   ├── README.md              # Project documentation
-│   ├── buttons.txt            # Raw protocol analysis
-│   └── code/                  # Implementation files
-│       ├── controller.py      # Unified Gazco controller
-│       ├── scripts/           # Individual command scripts
-│       │   ├── gazco_on.py    # ON command
-│       │   ├── gazco_off.py   # OFF command
-│       │   ├── gazco_up.py    # UP command (increase temp)
-│       │   └── gazco_down.py  # DOWN command (decrease temp)
-│       └── utils/
-│           └── convert_gazco.py  # PWM conversion utility
-│
-├── sonte-smart-film/          # Sonte project directory
-│   ├── README.md              # Project documentation
-│   └── code/                  # Implementation files
-│       ├── sonte_controller.py            # Unified controller class
-│       ├── sonte_button1_transparent.py   # Button 1 (transparent)
-│       ├── sonte_button2_opaque.py        # Button 2 (opaque)
-│       └── sonte_signal_analyzer.py       # PWM analysis utility
-│
-├── methodology/               # Shared reverse engineering methodology
-│   ├── README.md              # Step-by-step RF analysis guide
-│   └── screenshots/           # Analysis screenshots (from Sonte session)
-│
-├── requirements.txt           # Python dependencies
-└── README.md                  # Main project documentation
+├── rf_signals.py                    # Shared Transmission and checked send path
+├── TRANSMISSIONS.md                 # Recorded-byte provenance and uncertainties
+├── gazco-fireplace/
+│   ├── buttons.txt                 # Historical decoded notes
+│   └── code/
+│       ├── controller.py           # GazcoController and CLI
+│       ├── gazco_profiles.py       # Immutable complete bursts
+│       ├── scripts/gazco_*.py      # Wrappers for on/off/up/down
+│       └── utils/convert_gazco.py   # Optional bitstring-based encoding example
+├── sonte-smart-film/
+│   └── code/
+│       ├── sonte_controller.py     # SonteController and CLI
+│       ├── sonte_profiles.py       # Immutable button1/button2/original bursts
+│       ├── sonte_button1_transparent.py
+│       ├── sonte_button2_opaque.py
+│       └── sonte_signal_analyzer.py
+├── tests/
+│   ├── fixtures/transmissions.json # Independent pre-reconciliation references
+│   └── test_transmissions.py       # Offline behavior and byte checks
+├── tools/check_documentation.py    # Local links and marked offline CLI examples
+└── .github/workflows/offline-checks.yml
 ```
 
-## Gazco Fireplace Code
+## Inspect from the repository root
 
-### Two Ways to Use
+No dependency installation is needed for these commands:
 
-**Option 1: Unified Controller (Recommended)**
+<!-- offline-smoke -->
+```bash
+python gazco-fireplace/code/controller.py on --dry-run
+python gazco-fireplace/code/scripts/gazco_up.py --dry-run
+python sonte-smart-film/code/sonte_controller.py original --dry-run
+python sonte-smart-film/code/sonte_button1_transparent.py --dry-run
+```
+
+The optional conversion utilities require `bitstring`. They calculate encodings,
+not complete transmit bursts. See [the public quick start](README.md#quick-start)
+and [the analysis guide](analysis/protocol_docs/signal_analysis.md).
+
+## Programmatic use
+
+From `gazco-fireplace/code`, after setting up
+[radio access](README.md#radio-access-for-maintainers):
+
 ```python
 from controller import GazcoController
 
-ctrl = GazcoController()
-ctrl.send_command('on')
-ctrl.send_command('up')
-ctrl.close()
+controller = GazcoController()  # No hardware opened yet.
+if not controller.send_command('on'):
+    raise RuntimeError('Gazco transmission could not be submitted')
 ```
 
-**Option 2: Individual Scripts**
+For Sonte, import `SonteController` from `sonte_controller` while in
+`sonte-smart-film/code`. Its profiles are `button1`, `button2`, and `original`.
+The first two retain historical transparent/opaque labels; `original` has no
+assigned physical meaning.
+
+A valid actual send opens RfCat lazily, applies the recorded settings, submits
+the complete bytes once, checks the return status, and attempts IDLE cleanup.
+Programmatic failure returns `False`; CLI failure returns a nonzero exit status.
+The sender does not add host repeat loops or delays. Submission does not prove
+target reception. See [TRANSMISSIONS.md](TRANSMISSIONS.md) for the legacy
+`None` status compatibility limit and exact bytes.
+
+## Protocol quantities
+
+| Device | Carrier setting | Data-rate setting | Logical key | FLEN byte setting |
+|---|---:|---:|---|---|
+| Gazco | 433876000 Hz | 1095 symbols/s | 23 bits; PWM `1=100, 0=110` | 23 |
+| Sonte | 433916000 Hz | 2500 symbols/s | 24–25 bits; PWM `1=1000, 0=1110` | 15 or 16 |
+
+The logical key length, FLEN argument, and complete burst length are separate.
+The historical Gazco timing calculation is `320000 / 292`, approximately 1095.89
+units/s; the scripts preserve the 1095 setting.
+
+## History and language
+
+Gazco work began with individual scripts in 2017–2018 and later gained a unified
+controller. The Sonte analysis dates to February 2019; its analyzer retains
+Norwegian comments such as “Fjernkontrollens key” (the remote control's key).
+The shared profiles now keep controller and wrapper transmissions identical.
+They preserve the earlier recorded bursts rather than infer new values.
+
+## Checks
+
+Run from the repository root:
+
 ```bash
-cd gazco-fireplace/code/scripts
-python gazco_on.py     # Turn on
-python gazco_up.py     # Increase temp
-python gazco_down.py   # Decrease temp
-python gazco_off.py    # Turn off
+python -m unittest discover -s tests -v
+python tools/check_documentation.py
 ```
 
-### Protocol Details
-- **Frequency**: 433.876 MHz
-- **Modulation**: ASK/OOK
-- **PWM Encoding**: 1='100', 0='110'
-- **Decoded command length**: 23 logical bits (separate from the RFcat FLEN byte setting)
-- **Baud Rate**: 1095 Hz (measured from captured signal: 1/292 samples @ 320 kHz)
-
-### Files
-- `controller.py` - Modern unified controller with error handling
-- `scripts/gazco_*.py` - Original individual command scripts (legacy)
-- `utils/convert_gazco.py` - Utility to convert binary to PWM encoding
-
-## Sonte Smart Film Code
-
-### Two Ways to Use
-
-**Option 1: Unified Controller (Recommended)**
-```python
-from sonte_controller import SonteController
-
-ctrl = SonteController()
-ctrl.send_command('button1')    # Make transparent
-ctrl.send_command('button2')    # Make opaque
-ctrl.close()
-```
-
-**Option 2: Individual Scripts**
-```bash
-cd sonte-smart-film/code
-python sonte_button1_transparent.py   # Make transparent
-python sonte_button2_opaque.py        # Make opaque
-```
-
-### Protocol Details
-- **Frequency**: 433.916 MHz
-- **Modulation**: ASK/OOK
-- **PWM Encoding**: 1='1000', 0='1110'
-- **RFcat FLEN setting**: 15-16 bytes (varies by command; not the full burst length)
-- **Baud Rate**: 2500 Hz
-
-### Files
-- `sonte_controller.py` - Unified controller with Norwegian comments
-- `sonte_button1_transparent.py` - Button 1 command (Norwegian comments: "Fjernkontrollens key")
-- `sonte_button2_opaque.py` - Button 2 command
-- `sonte_signal_analyzer.py` - PWM analysis utility (no RF transmission)
-
-## Norwegian Comments in Sonte Code
-
-The Sonte code includes Norwegian language comments from the original February 2019 development session:
-
-- **"Fullstendig PWM key"** = Complete PWM key
-- **"Fjernkontrollens key"** = The remote control's key
-
-This reflects the authentic development context and has been preserved in the code.
-
-## Shared transmission profiles
-
-Both devices use immutable profiles and `rf_signals.py` at the repository root.
-Standalone wrappers and controllers submit the same complete bytes in one call.
-See [TRANSMISSIONS.md](TRANSMISSIONS.md) for exact lengths, historical evidence,
-DOWN's explicit nineteen-frame alternative, and Sonte's restored `original`.
-
-## Code Evolution
-
-### Gazco (2017-2018)
-1. Started with individual script files for each command
-2. Later created unified controller class for easier integration
-3. Both approaches still available
-
-### Sonte (February 2019)
-1. Created individual script files during analysis session
-2. Added unified controller for this repository reorganization
-3. Preserved Norwegian comments from original development
-
-## Installing and Using
-
-### As Standalone Scripts
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Navigate to project directory
-cd gazco-fireplace/code
-python scripts/gazco_on.py
-
-cd sonte-smart-film/code
-python sonte_button1_transparent.py
-```
-
-### Requirements
-```bash
-pip install -r requirements.txt
-```
-
-## Testing
-
-### Gazco
-```bash
-cd gazco-fireplace/code
-python -c "from controller import GazcoController; print('Import successful')"
-```
-
-### Sonte
-```bash
-cd sonte-smart-film/code
-python -c "from sonte_controller import SonteController; print('Import successful')"
-```
-
-## Notes
-
-- Actual transmissions require RfCat hardware; import/help/dry-run do not
-- A radio is opened only after validating a command for an actual send
-- The signal analyzer scripts can run without hardware (just calculate PWM encoding)
-- Individual scripts transmit only when run as a command; importing is harmless
-- `--dry-run` prints the recorded bytes and settings without hardware access
-- Controller classes provide better error handling and resource management
+The tests use fake radios and independent saved fixtures. They do not establish
+new hardware or physical-device results.

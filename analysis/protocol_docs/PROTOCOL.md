@@ -1,109 +1,108 @@
-# Gazco RF Protocol Technical Documentation
+# Gazco recorded protocol and transmission reference
 
-This document describes the reverse-engineered RF protocol for controlling Gazco fireplaces via a 433.876 MHz ASK/OOK link, including timing, frame structure, PWM encoding, and command formats.
+This reference separates the decoded command patterns from the exact bursts
+preserved by the current controllers. The original Gazco work dates to
+2017–2018. Current software checks compare recorded bytes and settings; they
+do not establish new on-air timing or physical fireplace behavior.
 
----
+The authoritative implementation is
+[`gazco_profiles.py`](../../gazco-fireplace/code/gazco_profiles.py). See
+[TRANSMISSIONS.md](../../TRANSMISSIONS.md) for source commits, historical notes,
+and unresolved differences. Do not reconstruct a transmit burst from the
+logical command table alone.
 
-## 1. Overview
+## Units and settings
 
-- **Carrier Frequency**: 433.876 MHz (± tolerance)  
-- **Modulation**: ASK/OOK (Amplitude Shift Keying / On-Off Keying)  
-- **Symbol Rate**: ~1095 symbols/s  
-- **Packet Length**: 23 bits  
-- **Inter-Packet Gap**: ~50 ms  
+| Quantity | Preserved value or interpretation |
+|---|---|
+| Carrier setting | 433876000 Hz |
+| Modulation | ASK/OOK |
+| Data-rate setting | 1095 symbols/s |
+| Decoded command | 23 logical bits |
+| PWM mapping | `1 → 100`, `0 → 110` |
+| Encoded command | 69 PWM bits, occupying nine bytes after byte alignment |
+| RFcat fixed-length setting | `makePktFLEN(23)` — a byte-setting argument, not 23 logical bits |
+| Sync mode | Zero, as in the original scripts |
+| Transmit input | One complete recorded burst, including extra bytes, zero padding, and repetitions |
 
----
+FLEN is a preserved hardware setting and is not the total burst length. Its
+interaction with the installed firmware must be checked on hardware; changing
+it to match a derived length would change the historical configuration.
 
-## 2. Frame Structure
+## Command patterns and field hypotheses
 
-Each button press transmits a 23‑bit command frame, repeated to ensure reliability.
+The four recorded patterns share the first 17 bits:
 
-```
-[23‑bit Command] → pause → repeat
-```
+| Command | Full logical pattern | Last six bits |
+|---|---|---|
+| `on` | `10000011101110010001100` | `001100` |
+| `off` | `10000011101110010001000` | `001000` |
+| `up` | `10000011101110010000100` | `000100` |
+| `down` | `10000011101110010000010` | `000010` |
 
-- **Repetition Counts**:
-  - `on`: 9 repeats  
-  - `off`: 10 repeats  
-  - `up`: 10 repeats  
-  - `down`: 19 repeats  
+The original analysis proposed a seven-bit preamble, ten-bit address, and
+six-bit command. Those field meanings were not confirmed; the shared prefix
+and varying suffix are observations from these patterns, not a verified
+manufacturer protocol layout. No checksum or address semantics are inferred
+by the controller.
 
----
+## Timing rationale
 
-## 3. Bitfields
-
-### 3.1 Fixed Header (Bits 22–6)
-
-```
-10000011101110010
-```
-
-This 17‑bit preamble/sync pattern is constant across all commands.
-
-### 3.2 Command Bits (Bits 5–0)
-
-| Command | Bits [5:0] | Full 23‑bit Pattern                 |
-|---------|------------|-------------------------------------|
-| **on**  | `001100`   | `10000011101110010`**`001100`**    |
-| **off** | `001000`   | `10000011101110010`**`001000`**    |
-| **up**  | `000100`   | `10000011101110010`**`000100`**    |
-| **down**| `000010`   | `10000011101110010`**`000010`**    |
-
----
-
-## 4. PWM Encoding
-
-Before RF transmission, each binary bit is mapped to a 3‑symbol PWM sequence:
+The historical notes measured a shortest pulse of 292 samples at a sample
+rate of 320000 samples/s:
 
 ```python
-# Pseudocode conversion
-def pwm_sequence(bit):
-    return '100' if bit == '1' else '110'
+sample_rate = 320000
+shortest_pulse_samples = 292
+baud = sample_rate / shortest_pulse_samples  # approximately 1095.89
 ```
 
-- **`1` → `100`**: short ON, long OFF  
-- **`0` → `110`**: long ON, short OFF  
+The preserved scripts use 1095. One encoded high/low unit at that setting is
+approximately `1 / 1095` seconds, or 0.913 ms. A logical bit occupies three
+units, approximately 2.74 ms before gaps. Three PWM units are not three samples
+of the captured waveform. The analysis sample rate and the transmit symbol
+rate are different quantities.
 
-Symbol timing at 320 kHz sample rate: each PWM symbol (3 samples) ≈ 9.4 µs.
+Inter-frame timing is represented by bytes in the saved bursts. The sender
+does not insert 50 ms Python sleeps. These calculations explain the setting;
+they do not replace a measurement of the installed firmware's RF output.
 
----
+## Complete recorded bursts
 
-## 5. Hex Payloads
+Each row describes the frame bytes preserved in the scripts and how many
+copies appear in the burst. `00 × N` denotes explicit zero bytes.
 
-The controller sends raw bytes corresponding to the 23‑bit frame (padded to 8 bytes):
+| Profile | Recorded frame bytes | Frame bytes | Frames | Burst bytes |
+|---|---|---:|---:|---:|
+| `on` | `9b 6d a4 9a 49 b4 db 49 b0`, then `00 × 7` | 16 | 9 | 144 |
+| `off` | `9b 6d a4 9a 49 b4 db 4d b0`, then `00 × 6` | 15 | 10 | 150 |
+| `up` | `9b 6d a4 9a 49 b4 db 69 b0 b0`, then `00 × 6` | 16 | 10 | 160 |
+| `down` | `9b 6d a4 9a 49 b4 db 6d 30 b0`, then `00 × 6` | 16 | 10 | 160 |
+| `down_notes_19` | Same frame as `down` | 16 | 19 | 304 |
 
-| Command | Payload Bytes (hex)       | Length |
-|---------|---------------------------|--------|
-| **on**  | `9B 6D A4 9A 49 B4 DB 49` | 8 bytes |
-| **off** | `9B 6D A4 9A 49 B4 DB 4D` | 8 bytes |
-| **up**  | `9B 6D A4 9A 49 B4 DB 69` | 8 bytes |
-| **down**| `9B 6D A4 9A 49 B4 DB 6D` | 8 bytes |
+The additional `b0` in UP/DOWN and the zero padding belong to the recorded
+frames. The sender passes those bytes unchanged; it does not infer padding
+from FIFO size. Eight-byte excerpts omit meaningful trailing data.
 
-> **Padding**: Remaining zero bytes (if any) are appended by the controller library to match hardware FIFO lengths.
+Two historical disagreements remain deliberate: ON retains the script's seven
+zero bytes although an earlier note lists six; DOWN defaults to the script's
+ten frames, with nineteen exposed only as `down_notes_19`. The complete
+304-byte alternative uses the long-transmission path without a host repeat
+argument. Capture or hardware evidence is needed before changing either choice.
 
----
+## Inspect and validate without a radio
 
-## 6. Timing and Reliability
+Run from the repository root:
 
-- **Inter-Packet Gap**: Each frame repeat is separated by ~50 ms to allow the receiver to resynchronize.  
-- **No Checksum**: Reliability is achieved via fixed header, repeat counts, and gap timing.
-
----
-
-## 7. RfCat Configuration Example
-
-```python
-from rflib import RfCat, MOD_ASK_OOK
-
-d = RfCat()
-d.setMdmModulation(MOD_ASK_OOK)  # ASK/OOK
-d.makePktFLEN(23)                 # 23 bit payload
-d.setMdmDRate(1095)               # symbol rate
-d.setMdmSyncMode(0)               # no preamble
-d.setFreq(433_876_000)            # 433.876 MHz
-d.setMaxPower()
+<!-- offline-smoke -->
+```bash
+python gazco-fireplace/code/controller.py on --dry-run
+python gazco-fireplace/code/controller.py down_notes_19 --dry-run
 ```
 
----
-
-*This document reflects empirical reverse‑engineering and has been validated with multiple captures and transmissions.*
+The output includes the exact settings, full payload hex, and burst length.
+`python -m unittest discover -s tests -v` compares all profiles against frozen
+pre-reconciliation fixtures. To submit a real command after configuring the
+[radio dependency](../../README.md#radio-access-for-maintainers), omit
+`--dry-run` from a controller command. A successful submission is not an
+acknowledgement from the fireplace.

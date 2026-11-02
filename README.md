@@ -11,8 +11,8 @@ This repository documents two independent RF protocol reverse engineering projec
 
 ### Projects
 
-| Project | Frequency | Protocol | Status |
-|---------|-----------|----------|--------|
+| Project | Frequency | Protocol |
+|---------|-----------|----------|
 | [**Gazco Fireplace Remote**](gazco-fireplace/) | 433.876 MHz | 23-bit PWM (1='100', 0='110') |
 | [**Sonte Smart Film Remote**](sonte-smart-film/) | 433.916 MHz | 24-25 bit PWM (1='1000', 0='1110') |
 
@@ -67,53 +67,86 @@ python -m unittest discover -s tests -v
 ```
 
 Imports, construction, help and dry runs do not open a radio. Actual sends
-require RfCat. The [maintained Python 3 fork](https://github.com/A1Tman/rfcat_py3)
-reports firmware errors; older releases may discard those errors internally.
+require RfCat. The maintainer's private Python 3 fork reports firmware errors;
+older releases may discard those errors internally.
 
 ## Quick Start
 
-### Hardware Requirements
-- **RfCat compatible device** (YARD Stick One, cc1111-based USB dongle)
-- **Target devices**: Gazco fireplace or Sonte smart film controller
-- **Optional**: SDR receiver for signal analysis (RTL-SDR, HackRF, etc.)
+### Explore without hardware
 
-### Installation
-
-Use Python 3.10 or newer and the maintained local `rfcat_py3` checkout beside
-this repository. Install that checkout first so the controller uses the version
-that reports numeric firmware errors:
+Use Python 3.10 or newer. Clone this public repository and optionally create a
+virtual environment. The controller dry runs and regression tests need only
+the Python standard library; no private checkout or dependency installation is
+required.
 
 ```bash
+git clone https://github.com/A1Tman/rf-reverse-engineering.git
 cd rf-reverse-engineering
 python -m venv .venv
 # Windows PowerShell: .\.venv\Scripts\Activate.ps1
 # Linux/macOS: source .venv/bin/activate
-python -m pip install -e "../rfcat_py3[hardware]"
-python -m pip install -r requirements.txt
 ```
 
-The tested RfCat status changes may exist only on the local branch. Use the
-existing sibling checkout; this setup does not assume those changes are already
-published on GitHub. Installing a generic older `rfcat` release alone cannot
-provide error statuses that its implementation discards. See
-[compatibility notes](TRANSMISSIONS.md#inspect-and-test-without-hardware).
+Run from the repository root:
+
+<!-- offline-smoke -->
+```bash
+python gazco-fireplace/code/controller.py on --dry-run
+python sonte-smart-film/code/sonte_controller.py original --dry-run
+```
+
+```bash
+python -m unittest discover -s tests -v
+python tools/check_documentation.py
+```
+
+Dry runs print full recorded bytes and settings. Tests compare the profiles
+against independent frozen fixtures and check failure handling with fake radios.
+The optional analysis utilities need `bitstring`:
+
+```bash
+python -m pip install bitstring
+python gazco-fireplace/code/utils/convert_gazco.py
+python sonte-smart-film/code/sonte_signal_analyzer.py
+```
+
+### Radio access for maintainers
+
+Actual transmission needs an RfCat-compatible dongle (such as YARD Stick One),
+the relevant target device, and a compatible RfCat installation. Raw waveform
+analysis also needs an SDR receiver and its recording software.
+
+The maintained [rfcat_py3 repository](https://github.com/A1Tman/rfcat_py3) is
+private. With access, place it beside this checkout and install its reviewed
+`codex/replay-analysis-reliability` branch (the previously pushed checkpoint is
+`c504cf3`):
+
+```bash
+python -m pip install -e "../rfcat_py3[hardware]"
+```
+
+An older public RfCat release may work through the legacy `None` return-value
+compatibility path, but cannot report firmware statuses it discards. The
+historical `requirements.txt` selects a public package; it is not a lock file
+for the maintained fork. See [compatibility and validation limits](TRANSMISSIONS.md#inspect-and-test-without-hardware).
 
 ### Usage
 
+Run these from the repository root only after setting up radio access. These
+commands send real transmissions; append `--dry-run` to inspect them instead.
+
 **Gazco Fireplace Control:**
 ```bash
-cd gazco-fireplace/code
-python scripts/gazco_on.py    # Turn fireplace ON
-python scripts/gazco_off.py   # Turn fireplace OFF
-python scripts/gazco_up.py    # Increase temperature
-python scripts/gazco_down.py  # Decrease temperature
+python gazco-fireplace/code/controller.py on
+python gazco-fireplace/code/controller.py off
+python gazco-fireplace/code/controller.py up
+python gazco-fireplace/code/controller.py down
 ```
 
 **Sonte Smart Film Control:**
 ```bash
-cd sonte-smart-film/code
-python sonte_controller.py button1    # Make transparent
-python sonte_controller.py button2    # Make opaque
+python sonte-smart-film/code/sonte_controller.py button1    # Historical transparent label
+python sonte-smart-film/code/sonte_controller.py button2    # Historical opaque label
 ```
 
 ## Project Comparison
@@ -124,8 +157,8 @@ python sonte_controller.py button2    # Make opaque
 | **Modulation** | ASK/OOK | ASK/OOK |
 | **Bit Length** | 23 bits | 24-25 bits |
 | **PWM Encoding** | 1='100', 0='110' | 1='1000', 0='1110' |
-| **Baud Rate** | 1095 Hz | ~2500 Hz |
-| **Sample Timing** | 1=300, 0=600 @ 320kHz | Different timing |
+| **Data-rate setting** | 1095 symbols/s | 2500 symbols/s |
+| **Timing rationale** | Shortest pulse: 292 samples at 320 kHz | Four encoded units per logical bit |
 | **Commands** | ON/OFF/UP/DOWN | Transparent/Opaque |
 
 ## Repository Structure
@@ -168,7 +201,6 @@ rf-reverse-engineering/
 **Important Disclaimers:**
 - This project is for **educational and research purposes only**
 - Only use on devices you own or have explicit permission to control
-- Complies with local regulations for 433 MHz ISM band usage
 - Transmission on 433 MHz ISM band must follow local power and duty cycle regulations
 - No warranty provided - use at your own risk
 

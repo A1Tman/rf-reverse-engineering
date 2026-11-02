@@ -1,115 +1,83 @@
-# Signal Analysis and Reverse Engineering
+# Signal analysis and reverse engineering
 
-This document outlines the steps taken to capture, process, and analyze the RF signals used by Gazco fireplaces. It complements the Protocol Specification by demonstrating how raw data was collected and decoded.
+The Gazco analysis began in 2017–2018. The retained workflow screenshots are
+from the later Sonte session in February 2019. They illustrate the analysis
+process; they are not Gazco captures or a new validation of the current code.
 
----
+## Capture a waveform
 
-## 1. Capture Setup
+Use an SDR receiver with a supported SDR#/HDSDR/GNU Radio input to record the
+remote's signal. The YARD Stick One/RfCat packet interface used by these
+controllers is a separate workflow; `RFrecv()` returns packet bytes and a
+timestamp, not the raw sample stream expected by Audacity.
 
-* **Hardware**: Yardstick One USB SDR (Great Scott Gadgets)
-* **Antenna**: Quarter-wave 433 MHz whip
-* **Software**: RFcat Python library and custom capture script
-* **Environment**: Indoor laboratory with minimal RF interference
+1. Record the carrier setting, receiver model, gain, and sample rate.
+2. Capture several presses of one button and retain the original recording.
+3. For OOK pulse analysis, produce an amplitude/envelope waveform, for example
+   with GNU Radio's Complex to Mag block. Record any resampling or filtering.
+4. Import that waveform using its actual format and sample rate. Do not import
+   interleaved complex IQ or packet bytes as a mono float waveform.
+5. Measure high and low runs across multiple frames, including the gaps.
 
-**Procedure**:
+The historical notes use 320 kHz for timing calculations. That is an input to
+those calculations, not a requirement to reinterpret every new file at 320 kHz.
+This repository retains screenshots and decoded notes rather than a complete
+replayable raw-capture dataset.
 
-1. Connect Yardstick One and verify with:
+![Sonte pulse inspection in Audacity](../../methodology/screenshots/03_pwm_pattern_analysis_audacity.png)
 
-   ```bash
-   rfcat --version
-   ```
-2. Capture raw samples:
+## Recover timing and logical bits
 
-   ```python
-   from rflib import RfCat
-   d = RfCat()
-   d.setFreq(433_876_000)        # 433.876 MHz
-   d.savingSamples('signals.raw')
-   d.RFxmitOpen()                # Enable RX
-   input('Press Enter to stop capture...')
-   d.RFxmitClose()
-   ```
-3. Import `signals.raw` into URH or Audacity for waveform viewing.
+For Gazco, the notes record a shortest high pulse of 292 samples at 320000
+samples/s. The conversion explains the preserved 1095 data-rate setting:
 
----
-
-## 2. Raw Waveform Inspection
-
-**Audacity Export**:
-
-* Import `signals.raw` as 32-bit float at 320 kHz sample rate (mono).
-* Zoom into a single button press (\~7 ms duration).
-
-**Key Observations**:
-
-* High/low ASK pulses are clearly defined.
-* Pulse durations cluster around \~300 and \~600 samples.
-* A distinctive preamble appears at each frame’s start.
-
-![Zoomed PWM waveform](../analysis/figure002.png)
-
----
-
-## 3. Symbol Timing Extraction
-
-**Data Analysis**:
-
-1. Parse sample runs (high/low) in `signals.raw`.
-2. Measure shortest and longest runs: \~292 and \~601 samples.
-3. Compute symbol rate:
-
-   ```python
-   short, long = 292, 601
-   baud = 1.0 / (short / 320000)
-   print(f"Measured symbol rate: {baud:.0f} symbols/s")  # ~1095 symbols/s
-   ```
-
----
-
-## 4. PWM Decoding
-
-Translate sample-run lengths into bits:
-
-* **Run ≤ 350 samples** → binary `1`
-* **Run > 350 samples** → binary `0`
-
-**Resulting 23-bit frame**:
-
-```
-10000011101110010000100
+```python
+sample_rate = 320000
+shortest_high_samples = 292
+print(sample_rate / shortest_high_samples)  # approximately 1095.89 units/s
 ```
 
----
+The observed Gazco mapping is `1 → 100`, `0 → 110`: each logical bit spans
+three high/low units. Interpret a high pulse with its associated low interval;
+a threshold applied indiscriminately to every run is not a complete decoder.
+For another capture, remeasure the runs instead of assuming the same sample
+counts. The proposed preamble/address fields remain hypotheses.
 
-## 5. Byte Conversion
+## Inspect conversion and recorded bytes
 
-Use the converter utility to map PWM to bytes:
+The optional conversion utilities calculate PWM encodings. They do not produce
+the complete preserved transmit bursts, which contain historical additional
+bytes, padding, and repetition. From the repository root:
 
 ```bash
-python -m gazco_rf.utils.convert_gazco > pwm_bytes.txt
+python -m pip install bitstring
+python gazco-fireplace/code/utils/convert_gazco.py
+python sonte-smart-film/code/sonte_signal_analyzer.py
 ```
 
-**Sample output**:
+The Gazco utility currently demonstrates DOWN; the Sonte utility demonstrates
+the key in its source. Neither sends radio traffic. To inspect the exact
+controller bursts without installing any dependencies:
 
+<!-- offline-smoke -->
+```bash
+python gazco-fireplace/code/controller.py up --dry-run
+python sonte-smart-film/code/sonte_controller.py original --dry-run
 ```
-PWM Key: 100110110110110110100100100110100100100110110100110110110110100110110
-Byte string: b"\x9bm\xa4\x9aI\xb4\xdbi\xb0"
-```
 
----
+See [the Gazco reference](PROTOCOL.md) and
+[transmission provenance](../../TRANSMISSIONS.md) for the difference between
+encoded keys and preserved bursts.
 
-## 6. Validation
+## Validation
 
-1. Transmit the byte string via RFcat:
+Run `python -m unittest discover -s tests -v` from the repository root for the
+offline fixture, status, and cleanup checks. They verify software behavior and
+byte preservation. They do not verify reception, on-air spacing, RF power, or
+physical target response.
 
-   ```python
-   from gazco_rf.controller import GazcoController
-   ctrl = GazcoController()
-   ctrl.send_command('on')
-   ```
-2. Verify the fireplace responds to `on`, `off`, `up`, and `down` commands.
-3. Repeat tests to confirm reliability.
-
----
-
-*End of signal analysis.*
+For a later hardware validation, record the installed firmware, controller
+profile, measured waveform, and observed target response. Keep those results
+separate from the earlier historical observations. Use the existing controller
+entry points and their checked send path, rather than rebuilding transmission
+loops from illustrative encoding snippets.

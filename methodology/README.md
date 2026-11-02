@@ -138,28 +138,29 @@ Before trying to transmit, I wanted to make sure I had the frequency right.
 
 ![Frequency Domain Analysis](screenshots/05_frequency_domain_analysis_gnuradio.png)
 
-FFT analysis in GNU Radio confirmed 433.916 MHz with about 5 kHz bandwidth, which matches the 2500 Hz baud rate (rule of thumb: bandwidth ≈ 2× baud rate).
+My historical interpretation was a 433.916 MHz carrier and roughly 5 kHz
+bandwidth. The retained FFT screenshot has a relative frequency axis; it does
+not independently establish the absolute carrier, emission limits, or bandwidth
+measurement method. The controller preserves the recorded 433916000 Hz and
+2500 symbols/s settings. A new verification needs the receiver's tuning settings
+and an actual measurement, not a bandwidth estimate from baud alone.
 
 ### Step 6: Build the Transmitter
 
 Now for the actual fun part - making it work!
 
-I used RfCat on a YARD Stick One. Basic Python script:
+I used RfCat on a YARD Stick One. The current code keeps the recorded bursts
+in shared profiles. From the repository root, inspect the original Sonte bytes:
 
-```python
-import rflib
-
-d = rflib.RfCat()
-d.setFreq(433916000)              # Frequency in Hz
-d.setMdmModulation(rflib.MOD_ASK_OOK)  # On-off keying
-d.setMdmDRate(2500)               # Baud rate
-d.makePktFLEN(15)                 # Packet length in bytes
-d.setMaxPower()
-
-# Send the command (pre-computed byte string)
-d.RFxmit(b'\x88\x88\x88\x88\xe8...')  # PWM-encoded data
-d.setModeIDLE()
+<!-- offline-smoke -->
+```bash
+python sonte-smart-film/code/sonte_controller.py original --dry-run
 ```
+
+After setting up [radio access](../README.md#radio-access-for-maintainers), omit
+`--dry-run` only when an actual transmission is intended. The shared sender
+checks status and attempts IDLE cleanup. Each profile already contains its
+recorded padding and repetition; adding a Python loop or sleeps changes it.
 
 The tricky part was converting my binary patterns into the correct byte strings. I ended up just capturing what each button should transmit and hardcoding it.
 
@@ -171,7 +172,11 @@ First time I hit run and the film actually moved was pretty satisfying.
 
 **Wrong baud rate**: Initially calculated 3100 Hz for Gazco but it should've been 1095 Hz. Had to go back to my original buttons.txt file to check.
 
-**Timing issues**: RfCat timing isn't perfect. Had to send each command multiple times (repeat 5-10 times) just like the original remote does.
+**Timing issues**: I found repetition important in the original experiments.
+The current profiles preserve the complete historical bursts, including their
+different repeat counts. See [TRANSMISSIONS.md](../TRANSMISSIONS.md) for the
+recorded choices and unresolved differences; do not apply a generic repeat
+count to every command.
 
 **Button confusion**: For Sonte, I initially thought there were up/down/stop buttons. Nope - just 2 buttons, one for transparent and one for opaque. The recorded cleanup commit is dated 9 December 2025. It also removed a differently labelled transmission that is now preserved separately as `original`; its physical button meaning remains unassigned.
 
@@ -186,7 +191,10 @@ First time I hit run and the film actually moved was pretty satisfying.
 
 ## Legal Stuff
 
-Obviously only do this with your own devices. These are my fireplace and smart film controller that I own. RF regulations vary by country but in the US these 433 MHz remotes fall under FCC Part 15 (unlicensed operation) so cloning your own remote is fine.
+These experiments used my own fireplace and smart film controller. Work only
+with devices you own or are authorized to control, and check the applicable RF
+requirements for your equipment and location. The saved settings and a successful
+software submission do not establish regulatory compliance.
 
 ## Timeline
 

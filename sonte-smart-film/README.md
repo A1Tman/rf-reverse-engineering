@@ -7,9 +7,13 @@
 
 ## Overview
 
-This project documents the complete reverse engineering of the Sonte smart film remote control system operating at 433.916 MHz. The analysis was conducted in February 2019 and systematically documented with screenshots at each phase, providing a complete visual workflow of the RF reverse engineering process.
+This project documents the author's Sonte smart film remote analysis at
+433.916 MHz and the preserved controller implementation. The analysis dates to
+February 2019, with screenshots illustrating the capture and decoding workflow.
 
-The protocol uses a 24-25 bit command structure with PWM encoding (1='1000', 0='1110'), successfully reimplemented using RfCat for programmatic control of smart film opacity.
+The recorded keys contain 24–25 logical bits with PWM encoding
+(1='1000', 0='1110'). The historical account reports successful control of film
+opacity; current offline tests verify the saved bytes and software behavior.
 
 **Documentation**: All analysis workflow screenshots in the [methodology/screenshots](../methodology/screenshots/) directory are from this project, captured during the February 3, 2019 analysis session. These screenshots provide a complete visual guide to the RF reverse engineering process and are referenced throughout the methodology documentation.
 
@@ -29,8 +33,8 @@ it a physical button meaning. See [transmission provenance](../TRANSMISSIONS.md)
 | **Encoding** | PWM (Pulse Width Modulation) |
 | **PWM Mapping** | 1='1000', 0='1110' |
 | **Decoded command length** | 24-25 logical bits; separate from the RFcat FLEN byte setting |
-| **Baud Rate** | ~2500 Hz |
-| **Protocol Type** | Fixed code with multiple channels |
+| **Data-rate setting** | 2500 symbols/s |
+| **Recorded controls** | Two fixed button patterns; channel semantics are not inferred |
 
 ## Command Protocol
 
@@ -51,9 +55,12 @@ The protocol uses a more complex PWM encoding compared to simpler 433 MHz device
 Binary '1' → PWM '1000' → One high unit + three low units
 Binary '0' → PWM '1110' → Long high + very short low
 
-This encoding provides better noise immunity at the cost of
-lower data rate (~2500 Hz vs ~3100 Hz for simpler schemes).
+Each logical bit occupies four high/low units.
 ```
+
+The table retains the historical button labels and decoded keys. Current
+regression tests preserve their recorded bytes; they do not reverify the
+physical transparent/opaque mapping or establish comparative noise immunity.
 
 **Example Command Structure**:
 ```
@@ -72,7 +79,7 @@ This project was documented systematically with screenshots at each analysis pha
 *SDR# waterfall display showing the 433.916 MHz signal. Note the clear vertical lines indicating button press transmissions in the ISM band.*
 
 **Key Observations**:
-- Frequency: 433.916 MHz (confirmed in later code analysis)
+- Recorded controller frequency setting: 433.916 MHz
 - Clean signal with minimal adjacent interference
 - Consistent timing between packet bursts
 - Multiple repetitions per button press
@@ -100,13 +107,15 @@ This project was documented systematically with screenshots at each analysis pha
 - Identify two distinct patterns
 - Map patterns to binary values
 
-**Timing Measurements**:
+**Timing interpretation at the preserved data-rate setting**:
 ```
-At 320 kHz sampling rate:
-  High pulse (1): ~1000 pattern duration
-  Low pulse (0):  ~1110 pattern duration
-  Distinguishable by the trailing low duration
+At 2500 symbols/s, one high/low unit is 0.4 ms:
+  Logical 1 (1000): high 0.4 ms, low 1.2 ms
+  Logical 0 (1110): high 1.2 ms, low 0.4 ms
 ```
+
+These durations follow from the setting and mapping; they are not new
+measurements of the screenshots or the installed dongle's output.
 
 ### Phase 4: Signal Processing
 
@@ -126,13 +135,16 @@ decoded = map_pwm_to_binary(pulses)
 ### Phase 5: Frequency Domain Validation
 
 ![Frequency Domain Analysis](../methodology/screenshots/05_frequency_domain_analysis_gnuradio.png)
-*GNU Radio FFT display confirming the 433.916 MHz center frequency and signal bandwidth. The clean spectral peak validates proper frequency identification.*
+*Retained GNU Radio FFT view from the historical workflow. Its relative
+frequency axis needs receiver tuning metadata to establish an absolute carrier.*
 
-**Validation Results**:
-- ✅ Center frequency: 433.916 MHz (confirmed)
-- ✅ Bandwidth: ~5 kHz (consistent with 2500 Hz baud rate)
-- ✅ No spurious emissions
-- ✅ Signal-to-noise ratio: >25 dB
+**Historical interpretations and current limits**:
+- The recorded controller setting is 433.916 MHz.
+- Earlier documentation described approximately 5 kHz bandwidth and SNR above
+  25 dB. The retained screenshot alone does not establish those measurements
+  or their method; retain them as historical reports pending supporting data.
+- No current emissions measurement is included. The screenshot cannot establish
+  an absence of spurious emissions or regulatory compliance.
 
 ## Implementation
 
@@ -182,14 +194,17 @@ python sonte_button2_opaque.py
 
 **Analysis Session: February 3, 2019**
 
-This project was completed in a single focused analysis session with systematic documentation:
+The historical documentation describes one focused session, with this reported
+schedule. The exact hours are retained as the author's account rather than
+independently established from the screenshots:
 
 - **09:00-10:30**: Frequency discovery and signal capture
 - **10:30-12:00**: PWM pattern analysis and decoding
 - **12:00-13:30**: Python implementation and testing
 - **13:30-14:30**: Validation and documentation
 
-All five workflow screenshots were captured during this session, providing a complete record of the reverse engineering process.
+The five workflow screenshots are attributed to this session. They illustrate
+its stages but are not a complete raw-capture dataset or a new hardware test.
 
 ## Comparison with Gazco Project
 
@@ -209,7 +224,9 @@ Both projects used identical methodology and tools, demonstrating the repeatabil
 
 This project serves as the reference implementation for the [RF Reverse Engineering Methodology](../methodology/README.md) documented in this repository. All workflow screenshots and detailed process descriptions are based on this February 2019 analysis session.
 
-The methodology is generalizable to other RF protocols in the 433 MHz ISM band, with only frequency and encoding parameters varying between devices.
+The capture-and-compare approach can be reused, but other devices may differ in
+framing, checksums, addressing, timing, and stateful protocols as well as carrier
+and encoding. The preserved settings apply to these recorded transmissions.
 
 ## Testing & Validation
 
@@ -218,9 +235,9 @@ Hardware-free fixtures verify exact bytes, settings, one-burst calls, wrapper
 agreement, failures and cleanup. The `original` fixture comes from the 2024
 script, not an inferred button mapping.
 
-No new hardware test was performed. Prior STOP/PROG, range and oscilloscope
-validation claims were unsupported by the reviewed evidence and have been
-removed. The device's response and the mapping of `original` remain unverified.
+No new hardware test was performed. The retained fixtures do not establish
+STOP/PROG commands, range, emissions, or oscilloscope validation. Current target
+response and the mapping of `original` still require a separate hardware check.
 
 ## Safety & Legal
 
@@ -231,8 +248,7 @@ removed. The device's response and the mapping of `original` remain unverified.
 - Maintain manual remote as backup control
 
 **Legal Compliance**:
-- 433 MHz ISM band: unlicensed operation permitted
-- Complies with local RF regulations
+- Check the applicable RF requirements for the equipment and location
 - For educational and personal use only
 - Only control devices you own
 
@@ -271,14 +287,15 @@ Potential improvements for this project:
 import rflib
 d = rflib.RfCat()
 d.setFreq(433916000)
-print(f"Set frequency: {d.getFreq()} Hz")
-# Should output: 433916000
+frequency, register_hex = d.getFreq()
+print(f"Configured frequency: {frequency} Hz")
+# Compare the quantized register setting with the intended 433916000 Hz.
 ```
 
 **Common issues**:
 - Frequency drift: Some RfCat devices need calibration
 - PWM encoding error: Verify 1='1000', 0='1110'
-- Insufficient repetitions: Try increasing from 10 to 15
+- Repetition/padding: Compare the complete preserved profile with a fresh capture before changing its bytes
 - Interference: 433 MHz band is crowded
 
 ### Analysis Issues
