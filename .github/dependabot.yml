@@ -13,7 +13,7 @@ updates:
     ignore:
       # Shared with RF_Projects and the maintained RfCat checkout.
       - dependency-name: bitstring
-        versions: [">=5"]
+        versions: [">=5.0.0"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
