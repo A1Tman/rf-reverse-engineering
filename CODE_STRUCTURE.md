@@ -62,7 +62,7 @@ python gazco_off.py    # Turn off
 - **Frequency**: 433.876 MHz
 - **Modulation**: ASK/OOK
 - **PWM Encoding**: 1='100', 0='110'
-- **Packet Length**: 23 bits
+- **Decoded command length**: 23 logical bits (separate from the RFcat FLEN byte setting)
 - **Baud Rate**: 1095 Hz (measured from captured signal: 1/292 samples @ 320 kHz)
 
 ### Files
@@ -95,7 +95,7 @@ python sonte_button2_opaque.py        # Make opaque
 - **Frequency**: 433.916 MHz
 - **Modulation**: ASK/OOK
 - **PWM Encoding**: 1='1000', 0='1110'
-- **Packet Length**: 15-16 bits (varies by command)
+- **RFcat FLEN setting**: 15-16 bytes (varies by command; not the full burst length)
 - **Baud Rate**: 2500 Hz
 
 ### Files
@@ -112,6 +112,13 @@ The Sonte code includes Norwegian language comments from the original February 2
 - **"Fjernkontrollens key"** = The remote control's key
 
 This reflects the authentic development context and has been preserved in the code.
+
+## Shared transmission profiles
+
+Both devices use immutable profiles and `rf_signals.py` at the repository root.
+Standalone wrappers and controllers submit the same complete bytes in one call.
+See [TRANSMISSIONS.md](TRANSMISSIONS.md) for exact lengths, historical evidence,
+DOWN's explicit nineteen-frame alternative, and Sonte's restored `original`.
 
 ## Code Evolution
 
@@ -161,8 +168,9 @@ python -c "from sonte_controller import SonteController; print('Import successfu
 
 ## Notes
 
-- All scripts require RfCat hardware to actually transmit
-- Scripts will error if rflib is not installed or RfCat device not connected
+- Actual transmissions require RfCat hardware; import/help/dry-run do not
+- A radio is opened only after validating a command for an actual send
 - The signal analyzer scripts can run without hardware (just calculate PWM encoding)
-- Individual command scripts are "fire and forget" - they execute immediately
+- Individual scripts transmit only when run as a command; importing is harmless
+- `--dry-run` prints the recorded bytes and settings without hardware access
 - Controller classes provide better error handling and resource management

@@ -74,7 +74,7 @@ For both my projects, they used PWM encoding where different pulse patterns repr
 - Binary 0 = `110` (medium high, short low)
 
 **Sonte smart film:**
-- Binary 1 = `1000` (high for 4 units)
+- Binary 1 = `1000` (high for 1 unit, low for 3)
 - Binary 0 = `1110` (high for 3, low for 1)
 
 I literally just counted samples in Audacity to figure this out. It's tedious but works.
@@ -173,7 +173,7 @@ First time I hit run and the film actually moved was pretty satisfying.
 
 **Timing issues**: RfCat timing isn't perfect. Had to send each command multiple times (repeat 5-10 times) just like the original remote does.
 
-**Button confusion**: For Sonte, I initially thought there were up/down/stop buttons. Nope - just 2 buttons, one for transparent and one for opaque. Fixed this in 2024 when cleaning up the repo.
+**Button confusion**: For Sonte, I initially thought there were up/down/stop buttons. Nope - just 2 buttons, one for transparent and one for opaque. The recorded cleanup commit is dated 9 December 2025. It also removed a differently labelled transmission that is now preserved separately as `original`; its physical button meaning remains unassigned.
 
 ## Tips if You Try This
 

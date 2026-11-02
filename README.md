@@ -49,6 +49,27 @@ The reverse engineering process follows a systematic approach documented in the 
 
 See the [Methodology README](methodology/README.md) for detailed documentation of the reverse engineering process.
 
+## Recorded transmission profiles
+
+Controllers and standalone scripts share the same preserved burst profiles.
+Gazco defaults keep the standalone-script bytes and padding; `down_notes_19`
+is a separate variant from the earlier notes. Sonte adds `original`, the
+64-byte transmission from the 2024 script, without assigning it a button meaning.
+
+See [Transmission provenance and unresolved differences](TRANSMISSIONS.md)
+for the ON padding and DOWN repetition discrepancies. These changes have offline
+byte-for-byte regression tests; no new hardware validation is claimed.
+
+```bash
+python gazco-fireplace/code/controller.py on --dry-run
+python sonte-smart-film/code/sonte_controller.py original --dry-run
+python -m unittest discover -s tests -v
+```
+
+Imports, construction, help and dry runs do not open a radio. Actual sends
+require RfCat. The [maintained Python 3 fork](https://github.com/A1Tman/rfcat_py3)
+reports firmware errors; older releases may discard those errors internally.
+
 ## Quick Start
 
 ### Hardware Requirements
@@ -58,16 +79,29 @@ See the [Methodology README](methodology/README.md) for detailed documentation o
 
 ### Installation
 
+Use Python 3.10 or newer and the maintained local `rfcat_py3` checkout beside
+this repository. Install that checkout first so the controller uses the version
+that reports numeric firmware errors:
+
 ```bash
-git clone https://github.com/A1Tman/rf-reverse-engineering.git
 cd rf-reverse-engineering
-pip install -r requirements.txt
+python -m venv .venv
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+python -m pip install -e "../rfcat_py3[hardware]"
+python -m pip install -r requirements.txt
 ```
+
+The tested RfCat status changes may exist only on the local branch. Use the
+existing sibling checkout; this setup does not assume those changes are already
+published on GitHub. Installing a generic older `rfcat` release alone cannot
+provide error statuses that its implementation discards. See
+[compatibility notes](TRANSMISSIONS.md#inspect-and-test-without-hardware).
 
 ### Usage
 
 **Gazco Fireplace Control:**
-```python
+```bash
 cd gazco-fireplace/code
 python scripts/gazco_on.py    # Turn fireplace ON
 python scripts/gazco_off.py   # Turn fireplace OFF
@@ -76,7 +110,7 @@ python scripts/gazco_down.py  # Decrease temperature
 ```
 
 **Sonte Smart Film Control:**
-```python
+```bash
 cd sonte-smart-film/code
 python sonte_controller.py button1    # Make transparent
 python sonte_controller.py button2    # Make opaque
@@ -127,7 +161,7 @@ rf-reverse-engineering/
 - **SDR Software**: SDR#, HDSDR, GNU Radio
 - **Analysis Tools**: Audacity, Python (numpy, matplotlib)
 - **Hardware**: RfCat (YARD Stick One), RTL-SDR
-- **Languages**: Python 3.6+
+- **Languages**: Python 3.10+
 
 ## Legal & Safety
 
